@@ -6,10 +6,15 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
+    "drizzle-orm": "^0.42.0",
+    "drizzle-typebox": "^0.3.2",
     "elysia": "latest"
   },
   "devDependencies": {
     "bun-types": "latest"
+  },
+  "overrides": {
+    "@sinclair/typebox": "0.34.27"
   },
   "module": "src/index.js"
 }
