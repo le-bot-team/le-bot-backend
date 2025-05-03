@@ -11,7 +11,9 @@
     "elysia": "latest"
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "drizzle-kit": "^0.31.0",
+    "postgres": "^3.4.5"
   },
   "overrides": {
     "@sinclair/typebox": "0.34.27"
