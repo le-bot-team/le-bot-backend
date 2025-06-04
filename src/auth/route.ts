@@ -1,6 +1,9 @@
 import { Elysia } from 'elysia'
+import { createSelectSchema } from 'drizzle-typebox'
 
 import { authService } from './service'
+
+const selectSchema = createSelectSchema(authService.model.emailCode)
 
 export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
   .use(authService)
