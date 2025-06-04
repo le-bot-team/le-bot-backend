@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
 
-import { authService } from '../services/user'
+import { authService } from './service'
 
 export const getUserId = new Elysia({name: 'auth/getUserId'})
   .use(authService)

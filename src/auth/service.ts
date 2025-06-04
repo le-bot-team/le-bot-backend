@@ -1,4 +1,10 @@
-import { Elysia, t } from 'elysia'
+import { Elysia } from 'elysia'
+import {
+  emailCodeValidator,
+  emailPasswordValidator,
+  phoneCodeValidator,
+  phonePasswordValidator,
+} from './validation/auth'
 
 export const authService = new Elysia({ name: 'auth/service' })
   .state({
@@ -7,22 +13,10 @@ export const authService = new Elysia({ name: 'auth/service' })
     userIdToAccessTokenMap: new Map<number, string>(),
   })
   .model({
-    signInEmailCode: t.Object({
-      email: t.String({ format: 'email' }),
-      code: t.String({ maxLength: 6, minLength: 6 }),
-    }),
-    signInEmailPassword: t.Object({
-      email: t.String({ format: 'email' }),
-      password: t.String({ minLength: 8 }),
-    }),
-    signInPhoneCode: t.Object({
-      phone: t.String({ format: 'phone' }),
-      code: t.String({ maxLength: 6, minLength: 6 }),
-    }),
-    signInPhonePassword: t.Object({
-      phone: t.String({ format: 'phone' }),
-      password: t.String({ minLength: 8 }),
-    }),
+    emailCode: emailCodeValidator,
+    emailPassword: emailPasswordValidator,
+    phoneCode: phoneCodeValidator,
+    phonePassword: phonePasswordValidator,
   })
   .macro({
     checkAccessToken: (enabled: boolean) => {
