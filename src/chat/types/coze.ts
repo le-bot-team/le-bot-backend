@@ -247,6 +247,7 @@ export class CozeWsWrapper {
               ),
             ),
           )
+          this.clearErrorList()
         } else {
           this._wsClient.send(
             JSON.stringify(
