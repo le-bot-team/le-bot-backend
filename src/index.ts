@@ -2,6 +2,7 @@ import { swagger } from '@elysiajs/swagger'
 import { Elysia } from 'elysia'
 
 import { authRoute } from './auth/route'
+import { chatRoute } from './chat/route'
 
 const app = new Elysia()
   .use(swagger())
@@ -12,6 +13,7 @@ const app = new Elysia()
     console.error(error)
   })
   .use(authRoute)
+  .use(chatRoute)
   .listen(3000)
 
 console.log(

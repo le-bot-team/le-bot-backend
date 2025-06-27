@@ -1,20 +1,28 @@
 import { Elysia } from 'elysia'
 import {
+  emailChallengeValidator,
   emailCodeValidator,
   emailPasswordValidator,
+} from './validation/email'
+
+import {
+  phoneChallengeValidator,
   phoneCodeValidator,
   phonePasswordValidator,
-} from './validation/auth'
+} from './validation/phone'
 
 export const authService = new Elysia({ name: 'auth/service' })
   .state({
-    accessTokenToUserIdMap: new Map<string, number>(),
+    accessTokenToUserIdMap: new Map<string, bigint>(),
     accessTokenCreatedAtMap: new Map<string, Date>(),
+    emailToCodeMap: new Map<string, string>(),
     userIdToAccessTokenMap: new Map<number, string>(),
   })
   .model({
+    emailChallenge: emailChallengeValidator,
     emailCode: emailCodeValidator,
     emailPassword: emailPasswordValidator,
+    phoneChallenge: phoneChallengeValidator,
     phoneCode: phoneCodeValidator,
     phonePassword: phonePasswordValidator,
   })
