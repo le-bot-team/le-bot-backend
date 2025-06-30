@@ -1,15 +1,15 @@
 import { ElysiaWS } from 'elysia/dist/ws'
 
 import {
-  wsClearContextResponseSuccess,
-  wsChatCompleteResponseError,
-  wsChatCompleteResponseSuccess,
-  wsOutputAudioCompleteResponseSuccess,
-  wsOutputAudioStreamResponseSuccess,
-  wsOutputTextCompleteResponseSuccess,
-  wsOutputTextStreamResponseSuccess,
-  wsUpdateConfigResponseSuccess,
-  wsCancelOutputResponseSuccess,
+  WsClearContextResponseSuccess,
+  WsChatCompleteResponseError,
+  WsChatCompleteResponseSuccess,
+  WsOutputAudioCompleteResponseSuccess,
+  WsOutputAudioStreamResponseSuccess,
+  WsOutputTextCompleteResponseSuccess,
+  WsOutputTextStreamResponseSuccess,
+  WsUpdateConfigResponseSuccess,
+  WsCancelOutputResponseSuccess,
 } from './websocket'
 
 export enum CozeWsEventType {
@@ -129,7 +129,7 @@ export class CozeWsWrapper {
       (message) => {
         this._wsClient.send(
           JSON.stringify(
-            new wsUpdateConfigResponseSuccess(
+            new WsUpdateConfigResponseSuccess(
               message.id,
               message.data.chat_config.conversation_id,
             ),
@@ -157,7 +157,7 @@ export class CozeWsWrapper {
         if (message.data.type === 'answer') {
           this._wsClient.send(
             JSON.stringify(
-              new wsOutputTextStreamResponseSuccess(
+              new WsOutputTextStreamResponseSuccess(
                 message.id,
                 message.data.chat_id,
                 message.data.conversation_id,
@@ -176,7 +176,7 @@ export class CozeWsWrapper {
         if (message.data.type === 'answer') {
           this._wsClient.send(
             JSON.stringify(
-              new wsOutputTextCompleteResponseSuccess(
+              new WsOutputTextCompleteResponseSuccess(
                 message.id,
                 message.data.chat_id,
                 message.data.conversation_id,
@@ -195,7 +195,7 @@ export class CozeWsWrapper {
         if (message.data.type === 'answer') {
           this._wsClient.send(
             JSON.stringify(
-              new wsOutputAudioStreamResponseSuccess(
+              new WsOutputAudioStreamResponseSuccess(
                 message.id,
                 message.data.chat_id,
                 message.data.conversation_id,
@@ -214,7 +214,7 @@ export class CozeWsWrapper {
         if (message.data.type === 'answer') {
           this._wsClient.send(
             JSON.stringify(
-              new wsOutputAudioCompleteResponseSuccess(
+              new WsOutputAudioCompleteResponseSuccess(
                 message.id,
                 message.data.chat_id,
                 message.data.conversation_id,
@@ -238,7 +238,7 @@ export class CozeWsWrapper {
         if (this._errorList.length) {
           this._wsClient.send(
             JSON.stringify(
-              new wsChatCompleteResponseSuccess(
+              new WsChatCompleteResponseSuccess(
                 message.id,
                 message.data.chat_id,
                 message.data.conversation_id,
@@ -251,7 +251,7 @@ export class CozeWsWrapper {
         } else {
           this._wsClient.send(
             JSON.stringify(
-              new wsChatCompleteResponseError(
+              new WsChatCompleteResponseError(
                 message.id,
                 message.data.chat_id,
                 message.data.conversation_id,
@@ -268,7 +268,7 @@ export class CozeWsWrapper {
       CozeWsEventType.conversationCleared,
       (message) => {
         this._wsClient.send(
-          JSON.stringify(new wsClearContextResponseSuccess(message.id)),
+          JSON.stringify(new WsClearContextResponseSuccess(message.id)),
         )
       },
     )
@@ -277,7 +277,7 @@ export class CozeWsWrapper {
       (message) => {
         this._wsClient.send(
           JSON.stringify(
-            new wsCancelOutputResponseSuccess(
+            new WsCancelOutputResponseSuccess(
               message.id,
               message.data?.code === 1 ? 'voice' : 'manual',
             ),

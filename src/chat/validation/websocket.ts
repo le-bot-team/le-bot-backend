@@ -1,6 +1,6 @@
 import { t } from 'elysia'
 
-export const wsRequestUpdateConfigValidator = t.Object({
+export const wsUpdateConfigRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('updateConfig'),
   data: t.Object({
@@ -23,7 +23,7 @@ export const wsRequestUpdateConfigValidator = t.Object({
   }),
 })
 
-export const wsRequestInputAudioStreamValidator = t.Object({
+export const wsInputAudioStreamRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('inputAudioStream'),
   data: t.Object({
@@ -31,27 +31,27 @@ export const wsRequestInputAudioStreamValidator = t.Object({
   }),
 })
 
-export const wsRequestInputAudioCompleteValidator = t.Object({
+export const wsInputAudioCompleteRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('inputAudioComplete'),
 })
 
-export const wsRequestClearContextValidator = t.Object({
+export const wsClearContextRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('clearContext'),
 })
 
-export const wsRequestCancelOutputValidator = t.Object({
+export const wsCancelOutputRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('cancelOutput'),
 })
 
 export const wsRequestValidator = t.Union([
-  wsRequestUpdateConfigValidator,
-  wsRequestInputAudioStreamValidator,
-  wsRequestInputAudioCompleteValidator,
-  wsRequestClearContextValidator,
-  wsRequestCancelOutputValidator
+  wsUpdateConfigRequestValidator,
+  wsInputAudioStreamRequestValidator,
+  wsInputAudioCompleteRequestValidator,
+  wsClearContextRequestValidator,
+  wsCancelOutputRequestValidator
 ])
 
 export const wsQueryValidator = t.Object({

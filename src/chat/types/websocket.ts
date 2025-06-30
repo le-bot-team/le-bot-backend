@@ -1,5 +1,5 @@
-class wsBasicResponseSuccess {
-  constructor(
+abstract class WsBaseResponseSuccess {
+  protected constructor(
     private readonly id: string,
     private readonly action: string,
   ) {}
@@ -18,8 +18,8 @@ class wsBasicResponseSuccess {
   }
 }
 
-export class wsBasicResponseError {
-  constructor(
+abstract class WsBaseResponseError {
+  protected constructor(
     private readonly id: string,
     private readonly action: string,
     private readonly message: string,
@@ -40,7 +40,7 @@ export class wsBasicResponseError {
   }
 }
 
-export class wsUpdateConfigResponseSuccess extends wsBasicResponseSuccess {
+export class WsUpdateConfigResponseSuccess extends WsBaseResponseSuccess {
   constructor(
     messageId: string,
     private readonly conversationId: string,
@@ -57,7 +57,7 @@ export class wsUpdateConfigResponseSuccess extends wsBasicResponseSuccess {
   }
 }
 
-export class wsOutputTextStreamResponseSuccess extends wsBasicResponseSuccess {
+export class WsOutputTextStreamResponseSuccess extends WsBaseResponseSuccess {
   constructor(
     messageId: string,
     private readonly chatId: string,
@@ -79,7 +79,7 @@ export class wsOutputTextStreamResponseSuccess extends wsBasicResponseSuccess {
   }
 }
 
-export class wsOutputTextCompleteResponseSuccess extends wsBasicResponseSuccess {
+export class WsOutputTextCompleteResponseSuccess extends WsBaseResponseSuccess {
   constructor(
     messageId: string,
     private readonly chatId: string,
@@ -101,7 +101,7 @@ export class wsOutputTextCompleteResponseSuccess extends wsBasicResponseSuccess 
   }
 }
 
-export class wsOutputAudioStreamResponseSuccess extends wsBasicResponseSuccess {
+export class WsOutputAudioStreamResponseSuccess extends WsBaseResponseSuccess {
   constructor(
     messageId: string,
     private readonly chatId: string,
@@ -122,7 +122,7 @@ export class wsOutputAudioStreamResponseSuccess extends wsBasicResponseSuccess {
   }
 }
 
-export class wsOutputAudioCompleteResponseSuccess extends wsBasicResponseSuccess {
+export class WsOutputAudioCompleteResponseSuccess extends WsBaseResponseSuccess {
   constructor(
     messageId: string,
     private readonly chatId: string,
@@ -141,7 +141,7 @@ export class wsOutputAudioCompleteResponseSuccess extends wsBasicResponseSuccess
   }
 }
 
-export class wsChatCompleteResponseSuccess extends wsBasicResponseSuccess {
+export class WsChatCompleteResponseSuccess extends WsBaseResponseSuccess {
   constructor(
     messageId: string,
     private readonly chatId: string,
@@ -164,7 +164,7 @@ export class wsChatCompleteResponseSuccess extends wsBasicResponseSuccess {
   }
 }
 
-export class wsChatCompleteResponseError extends wsBasicResponseError {
+export class WsChatCompleteResponseError extends WsBaseResponseError {
   constructor(
     messageId: string,
     private readonly chatId: string,
@@ -193,13 +193,13 @@ export class wsChatCompleteResponseError extends wsBasicResponseError {
   }
 }
 
-export class wsClearContextResponseSuccess extends wsBasicResponseSuccess {
+export class WsClearContextResponseSuccess extends WsBaseResponseSuccess {
   constructor(messageId: string) {
     super(messageId, 'clearContext')
   }
 }
 
-export class wsCancelOutputResponseSuccess extends wsBasicResponseSuccess {
+export class WsCancelOutputResponseSuccess extends WsBaseResponseSuccess {
   constructor(
     messageId: string,
     private readonly cancelType: 'manual' | 'voice',
