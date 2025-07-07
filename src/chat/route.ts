@@ -13,12 +13,12 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
     query: 'wsQuery',
     open(ws) {
       const { query, store } = ws.data
-      const userId = store.accessTokenToUserIdMap.get(query.token) ?? 0n
-      console.log({ userId })
+      const userId = store.accessTokenToUserIdMap.get(query.token) ?? 1n
       // if (!userId) {
       //   ws.close(1008, 'Unauthorized')
       //   return
       // }
+      console.log('WebSocket opened:', { userId, wsId: ws.id })
       store.wsIdToUserIdMap.set(ws.id, userId)
       const cozeWsWrapper = new CozeWsWrapper(
         ws,
@@ -36,22 +36,20 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
       }
       const userId = store.wsIdToUserIdMap.get(ws.id)
       store.wsIdToUserIdMap.delete(ws.id)
-      console.log(`WebSocket closed: ${ws.id}, User ID: ${userId}`)
+      console.log('WebSocket closed: ', { userId, wsId: ws.id })
     },
     message(ws, message) {
-      const { query, store } = ws.data
+      const { store } = ws.data
+      const userId = store.wsIdToUserIdMap.get(ws.id)
+      if (!userId) {
+        ws.close(1008, 'Unauthorized')
+        return
+      }
       const cozeWsWrapper = store.wsIdToWsWrapperMap.get(ws.id)
       if (!cozeWsWrapper) {
         ws.close(1008, 'Cannot find related Coze WebSocket wrapper')
         return
       }
-
-      const userId = store.accessTokenToUserIdMap.get(query.token)
-      if (!userId) {
-        ws.close(1008, 'Unauthorized')
-        return
-      }
-      console.log({ userId, id: message.id })
 
       switch (message.action) {
         case 'updateConfig': {
@@ -100,10 +98,7 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
           break
         }
         case 'clearContext': {
-          cozeWsWrapper.sendEvent(
-            message.id,
-            CozeWsEventType.conversationClear,
-          )
+          cozeWsWrapper.sendEvent(message.id, CozeWsEventType.conversationClear)
           break
         }
         case 'cancelOutput': {

@@ -9,7 +9,7 @@ import {
   WsOutputTextCompleteResponseSuccess,
   WsOutputTextStreamResponseSuccess,
   WsUpdateConfigResponseSuccess,
-  WsCancelOutputResponseSuccess,
+  WsCancelOutputResponseSuccess
 } from './websocket'
 
 export enum CozeWsEventType {
@@ -131,25 +131,25 @@ export class CozeWsWrapper {
           JSON.stringify(
             new WsUpdateConfigResponseSuccess(
               message.id,
-              message.data.chat_config.conversation_id,
-            ),
-          ),
+              message.data.chat_config.conversation_id
+            )
+          )
         )
-      },
+      }
     )
     this.setEventHandler<CozeWsResponseConversationChatProcessing>(
       [
         CozeWsEventType.conversationChatCreated,
-        CozeWsEventType.conversationChatInProgress,
+        CozeWsEventType.conversationChatInProgress
       ],
       (message) => {
         if (message.data.last_error) {
           this._errorList.push({
             code: message.data.last_error.Code,
-            message: message.data.last_error.Msg,
+            message: message.data.last_error.Msg
           })
         }
-      },
+      }
     )
     this.setEventHandler<CozeWsResponseConversationMessage>(
       CozeWsEventType.conversationMessageDelta,
@@ -161,14 +161,14 @@ export class CozeWsWrapper {
                 message.id,
                 message.data.chat_id,
                 message.data.conversation_id,
-                message.data.content,
-              ),
-            ),
+                message.data.content
+              )
+            )
           )
         } else {
           console.log(message)
         }
-      },
+      }
     )
     this.setEventHandler<CozeWsResponseConversationMessage>(
       CozeWsEventType.conversationMessageCompleted,
@@ -180,14 +180,14 @@ export class CozeWsWrapper {
                 message.id,
                 message.data.chat_id,
                 message.data.conversation_id,
-                message.data.content,
-              ),
-            ),
+                message.data.content
+              )
+            )
           )
         } else {
           console.log(message)
         }
-      },
+      }
     )
     this.setEventHandler<CozeWsResponseConversationMessage>(
       CozeWsEventType.conversationAudioDelta,
@@ -199,14 +199,14 @@ export class CozeWsWrapper {
                 message.id,
                 message.data.chat_id,
                 message.data.conversation_id,
-                message.data.content,
-              ),
-            ),
+                message.data.content
+              )
+            )
           )
         } else {
           console.log(message)
         }
-      },
+      }
     )
     this.setEventHandler<CozeWsResponseConversationMessage>(
       CozeWsEventType.conversationAudioCompleted,
@@ -217,14 +217,14 @@ export class CozeWsWrapper {
               new WsOutputAudioCompleteResponseSuccess(
                 message.id,
                 message.data.chat_id,
-                message.data.conversation_id,
-              ),
-            ),
+                message.data.conversation_id
+              )
+            )
           )
         } else {
           console.log(message)
         }
-      },
+      }
     )
     this.setEventHandler<CozeWsResponseConversationChatCompleted>(
       CozeWsEventType.conversationChatCompleted,
@@ -232,7 +232,7 @@ export class CozeWsWrapper {
         if (message.data.last_error) {
           this._errorList.push({
             code: message.data.last_error.Code,
-            message: message.data.last_error.Msg,
+            message: message.data.last_error.Msg
           })
         }
         if (this._errorList.length) {
@@ -243,9 +243,9 @@ export class CozeWsWrapper {
                 message.data.chat_id,
                 message.data.conversation_id,
                 message.data.created_at,
-                message.data.completed_at,
-              ),
-            ),
+                message.data.completed_at
+              )
+            )
           )
           this.clearErrorList()
         } else {
@@ -257,20 +257,20 @@ export class CozeWsWrapper {
                 message.data.conversation_id,
                 message.data.created_at,
                 message.data.completed_at,
-                this._errorList,
-              ),
-            ),
+                this._errorList
+              )
+            )
           )
         }
-      },
+      }
     )
     this.setEventHandler<CozeWsResponse>(
       CozeWsEventType.conversationCleared,
       (message) => {
         this._wsClient.send(
-          JSON.stringify(new WsClearContextResponseSuccess(message.id)),
+          JSON.stringify(new WsClearContextResponseSuccess(message.id))
         )
-      },
+      }
     )
     this.setEventHandler<CozeWsResponseConversationChatCanceled>(
       CozeWsEventType.conversationChatCanceled,
@@ -279,12 +279,15 @@ export class CozeWsWrapper {
           JSON.stringify(
             new WsCancelOutputResponseSuccess(
               message.id,
-              message.data?.code === 1 ? 'voice' : 'manual',
-            ),
-          ),
+              message.data?.code === 1 ? 'voice' : 'manual'
+            )
+          )
         )
-      },
+      }
     )
+    this.setEventHandler(CozeWsEventType.inputAudioBufferCompleted, ()=>{
+      console.log('Input audio buffer completed')
+    })
   }
 
   clearErrorList() {
@@ -303,7 +306,7 @@ export class CozeWsWrapper {
 
   setEventHandler<T extends CozeWsResponse>(
     eventTypeOrEventTypeList: CozeWsEventType | CozeWsEventType[],
-    handler: WsHandler<T>,
+    handler: WsHandler<T>
   ): void {
     if (Array.isArray(eventTypeOrEventTypeList)) {
       eventTypeOrEventTypeList.forEach((eventType) => {
@@ -349,12 +352,13 @@ export class CozeWsWrapper {
     }
     this._ws.onmessage = async (event) => {
       const message: CozeWsResponse = JSON.parse(event.data)
-      console.log(message)
+      console.log(message.event_type)
       const handler = this._eventHandlers.get(message.event_type)
       if (handler) {
         await handler(message as never)
       } else {
         console.warn(`Unknown event_type: ${message.event_type}`, event.data)
+        console.log(message)
       }
     }
   }
