@@ -1,4 +1,4 @@
-import { ElysiaWS } from 'elysia/dist/ws'
+import { ElysiaWS } from 'elysia/ws'
 
 import {
   WsClearContextResponseSuccess,
@@ -333,7 +333,7 @@ export class CozeWsWrapper {
     return this.sendRaw(JSON.stringify({ ...data, id, event_type: eventType }))
   }
 
-  sendRaw(message: string | ArrayBufferLike | Blob | ArrayBufferView) {
+  sendRaw(message: string | ArrayBufferLike | Bun.ArrayBufferView) {
     if (!this.isOpen) {
       console.log('WebSocket not connected')
       return false

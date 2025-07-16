@@ -1,0 +1,170 @@
+import { log } from '@log'
+
+import {
+  CompressionType,
+  MessageType,
+  SequenceNumberType,
+  SerializationType,
+} from './types'
+import {
+  createFullClientRequest,
+  parseResponseMessage,
+  serializeRequestMessage,
+} from './utils'
+
+export class AsrApi {
+  private _audioData: Uint8Array | undefined
+  private _ws: WebSocket | undefined
+  private _connectionPromise: Promise<boolean> | null = null
+  private _isReady = false // 添加状态标记
+  private _sequenceNumber = 1 // 添加序列号管理
+
+  constructor(
+    private readonly _connectId: string,
+    private readonly _userId: bigint,
+    private readonly _deviceId: string,
+  ) {}
+
+  sendAudioBase64(audioDataBase64: string, isLast = false): boolean {
+    if (!this._ws || !this._isReady) {
+      // 检查是否真正准备好
+      log.warn('AsrApi is not ready to send audio data')
+      return false
+    }
+    const audioData = Uint8Array.fromBase64(audioDataBase64)
+
+    // 根据Python脚本的逻辑处理序列号
+    let sequenceNumberType: SequenceNumberType
+    let currentSeq = this._sequenceNumber
+
+    if (isLast) {
+      // 最后一个包：使用负序列号并设置特殊标志
+      sequenceNumberType = SequenceNumberType.negative
+      currentSeq = -this._sequenceNumber
+    } else {
+      sequenceNumberType = SequenceNumberType.positive
+      this._sequenceNumber++ // 非最后包递增序列号
+    }
+
+    this._ws.send(
+      serializeRequestMessage(
+        MessageType.audioOnlyRequest,
+        sequenceNumberType,
+        CompressionType.none,
+        audioData,
+        currentSeq,
+      ),
+    )
+    return true
+  }
+
+  close() {
+    this._ws?.close()
+    this._isReady = false // 重置状态
+    this._sequenceNumber = 1 // 重置序列号
+  }
+
+  async connect(): Promise<boolean> {
+    if (this._connectionPromise) {
+      return this._connectionPromise
+    }
+
+    if (this._ws && this._isReady) {
+      // 检查是否真正准备好
+      log.warn('WebSocket is already connected')
+      return true
+    }
+
+    this._connectionPromise = new Promise<boolean>((resolve) => {
+      this._ws = new WebSocket(
+        'wss://openspeech.bytedance.com/api/v3/sauc/bigmodel',
+        {
+          headers: {
+            'X-Api-Access-Key': process.env.ACCESS_TOKEN,
+            'X-Api-App-Key': process.env.APP_ID,
+            'X-Api-Resource-Id': 'volc.bigasr.sauc.duration',
+            'X-Api-Connect-Id': this._connectId,
+          },
+        },
+      )
+      this._ws.onclose = (event) => {
+        log.warn(event, 'WebSocket closed')
+        this._audioData = undefined
+        this._isReady = false // 重置状态
+        this._sequenceNumber = 1 // 重置序列号
+        if (this._ws) {
+          this._ws.onopen = null
+          this._ws.onclose = null
+          this._ws = undefined
+        }
+        this._connectionPromise = null
+        resolve(false)
+      }
+      this._ws.onopen = () => {
+        // 注意：这里不要立即认为连接成功，需要等待配置响应
+        this._ws?.send(
+          serializeRequestMessage(
+            MessageType.fullClientRequest,
+            SequenceNumberType.positive,
+            CompressionType.none,
+            createFullClientRequest(this._userId, this._deviceId),
+            this._sequenceNumber,
+          ),
+        )
+        this._sequenceNumber++ // 发送配置请求后递增序列号
+        log.info('ASR WebSocket connection established')
+      }
+
+      if (!this._ws) {
+        log.error('WebSocket is not initialized')
+        this._connectionPromise = null
+        resolve(false)
+        return
+      }
+
+      this._ws.onmessage = async (event) => {
+        try {
+          const message = parseResponseMessage(event.data.buffer)
+          if (message.messageType === MessageType.errorResponse) {
+            log.warn(
+              {
+                errorType: message.errorType,
+                errorMessage: JSON.parse(message.errorMessage),
+              },
+              'Error response: ',
+            )
+            this._isReady = false
+            this._connectionPromise = null
+            resolve(false)
+            return
+          }
+          if (message.sequenceNumber === 1) {
+            log.info('ASR configuration updated successfully')
+            this._isReady = true // 只有在这里才标记为准备好
+            resolve(true)
+          } else {
+            if (
+              message.sequenceNumberType ===
+              SequenceNumberType.negativeWithSequence
+            ) {
+              // this._canSendAudio = false
+            }
+            if (message.serializationType === SerializationType.json) {
+              log.debug(
+                (message.payload as { result: object }).result,
+                'Text data received',
+              )
+            }
+          }
+          log.debug(message, 'Raw message received')
+        } catch (e) {
+          log.warn(e as Error, 'Failed to parse message')
+          this._isReady = false
+          this._connectionPromise = null
+          resolve(false)
+        }
+      }
+    })
+    return this._connectionPromise
+  }
+}

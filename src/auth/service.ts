@@ -1,10 +1,10 @@
 import { Elysia } from 'elysia'
+
 import {
   emailChallengeValidator,
   emailCodeValidator,
   emailPasswordValidator,
 } from './validation/email'
-
 import {
   phoneChallengeValidator,
   phoneCodeValidator,

@@ -1,21 +1,22 @@
 import { swagger } from '@elysiajs/swagger'
 import { Elysia } from 'elysia'
 
-import { authRoute } from './auth/route'
+import { log } from '@log'
+
+import { authRoute } from '@auth/route'
 import { chatRoute } from './chat/route'
 
 const app = new Elysia()
+  .use(log.into())
   .use(swagger())
-  .onError(({ error, code }) => {
-    if (code === 'NOT_FOUND') {
-      return 'Not Found :('
-    }
-    console.error(error)
+  .onError((ctx) => {
+    ctx.log?.error(ctx, ctx.error.toString());
+    return "onError";
   })
   .use(authRoute)
   .use(chatRoute)
   .listen(3000)
 
-console.log(
+log.info(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
 )

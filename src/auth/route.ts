@@ -2,9 +2,12 @@ import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 import nodemailer from 'nodemailer'
 
-import { dbInstance } from '../db/plugin'
-import { users } from '../db/schema'
+import { dbInstance } from '@db/plugin'
+import { users } from '@db/schema'
+import { log } from '@log'
+
 import { authService } from './service'
+
 
 export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
   .use(authService)
@@ -94,7 +97,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
           success: true,
         }
       } catch (e) {
-        console.error('Failed to send email:', e)
+        log.error(e, 'Failed to send email')
         return status(500, {
           success: false,
           message: 'Failed to send email',

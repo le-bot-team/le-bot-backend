@@ -1,3 +1,7 @@
+import { wsUpdateConfigRequestValidator } from 'src/chat/validation/websocket'
+
+export type WsUpdateConfigRequest = typeof wsUpdateConfigRequestValidator.static
+
 abstract class WsBaseResponseSuccess {
   protected constructor(
     private readonly id: string,

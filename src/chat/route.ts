@@ -1,111 +1,72 @@
 import { Elysia } from 'elysia'
 
-import { authService } from '../auth/service'
+import { authService } from '@auth/service'
+import { log } from '@log'
 
+import { ApiWrapper } from './api'
 import { chatService } from './service'
-import { CozeWsEventType, CozeWsWrapper } from './types/coze'
 
 export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
+  .use(log.into())
   .use(authService)
   .use(chatService)
   .ws('/ws', {
     body: 'wsRequest',
     query: 'wsQuery',
-    open(ws) {
-      const { query, store } = ws.data
+    open: (ws) => {
+      const { log, query, store } = ws.data
       const userId = store.accessTokenToUserIdMap.get(query.token) ?? 1n
       // if (!userId) {
       //   ws.close(1008, 'Unauthorized')
       //   return
       // }
-      console.log('WebSocket opened:', { userId, wsId: ws.id })
+      log.debug({ userId, wsId: ws.id }, 'WsClient opened')
       store.wsIdToUserIdMap.set(ws.id, userId)
-      const cozeWsWrapper = new CozeWsWrapper(
-        ws,
-        process.env.ACCESS_TOKEN ?? '',
-        process.env.BOT_ID ?? '',
-      )
-      store.wsIdToWsWrapperMap.set(ws.id, cozeWsWrapper)
+      store.wsIdToApiWrapperMap.set(ws.id, new ApiWrapper(ws, userId, ''))
     },
-    close(ws) {
-      const { store } = ws.data
-      const cozeWsWrapper = store.wsIdToWsWrapperMap.get(ws.id)
-      if (cozeWsWrapper) {
-        cozeWsWrapper.destroy()
-        store.wsIdToWsWrapperMap.delete(ws.id)
+    close: (ws) => {
+      const { log, store } = ws.data
+      const apiWrapper = store.wsIdToApiWrapperMap.get(ws.id)
+      if (apiWrapper) {
+        apiWrapper.destroy()
+        store.wsIdToApiWrapperMap.delete(ws.id)
       }
       const userId = store.wsIdToUserIdMap.get(ws.id)
       store.wsIdToUserIdMap.delete(ws.id)
-      console.log('WebSocket closed: ', { userId, wsId: ws.id })
+      log.debug({ userId, wsId: ws.id }, 'WsClient closed')
     },
-    message(ws, message) {
-      const { store } = ws.data
+    message: async (ws, message) => {
+      const { log, store } = ws.data
       const userId = store.wsIdToUserIdMap.get(ws.id)
       if (!userId) {
         ws.close(1008, 'Unauthorized')
         return
       }
-      const cozeWsWrapper = store.wsIdToWsWrapperMap.get(ws.id)
-      if (!cozeWsWrapper) {
-        ws.close(1008, 'Cannot find related Coze WebSocket wrapper')
+      const apiWrapper = store.wsIdToApiWrapperMap.get(ws.id)
+      if (!apiWrapper) {
+        ws.close(1008, 'ASR API not found')
         return
       }
 
       switch (message.action) {
         case 'updateConfig': {
-          cozeWsWrapper.sendEvent(message.id, CozeWsEventType.chatUpdate, {
-            data: {
-              chat_config: {
-                auto_save_history: true,
-                conversation_id: message.data.conversationId,
-                extra_params: message.data.location,
-                user_id: userId,
-              },
-              input_audio: {
-                format: 'wav',
-                codec: 'pcm',
-                sample_rate: message.data.sampleRate?.input ?? 24000,
-                channel: 1,
-                bit_depth: 16,
-              },
-              output_audio: {
-                codec: 'pcm',
-                speech_rate: message.data.speechRate ?? 0,
-                voice_id: message.data.voiceId ?? '7426725529589596187',
-              },
-            },
-          })
+          await apiWrapper.updateConfig(message)
           break
         }
         case 'inputAudioStream': {
-          cozeWsWrapper.sendEvent(
-            message.id,
-            CozeWsEventType.inputAudioBufferAppend,
-            {
-              data: {
-                delta: message.data.buffer,
-              },
-            },
-          )
+          apiWrapper.inputAudioStream(message.data.buffer)
           break
         }
         case 'inputAudioComplete': {
-          cozeWsWrapper.clearErrorList()
-          cozeWsWrapper.sendEvent(
-            message.id,
-            CozeWsEventType.inputAudioBufferComplete,
-          )
+          apiWrapper.inputAudioComplete()
           break
         }
         case 'clearContext': {
-          cozeWsWrapper.sendEvent(message.id, CozeWsEventType.conversationClear)
+          log.debug(message.id, 'clearContext')
           break
         }
         case 'cancelOutput': {
-          cozeWsWrapper.sendEvent(
-            message.id,
-            CozeWsEventType.conversationChatCancel,
-          )
+          log.debug(message.id, 'cancelOutput')
           break
         }
         default: {
