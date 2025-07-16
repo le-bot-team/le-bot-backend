@@ -35,6 +35,9 @@
       "@auth/*": [
         "./src/auth/*"
       ],
+      "@chat/*": [
+        "./src/chat/*"
+      ],
       "@db/*": [
         "./src/db/*"
       ],
