@@ -1,3 +1,4 @@
+import * as pako from 'pako'
 import {
   CompressionType,
   ErrorResponse,
@@ -52,17 +53,16 @@ export const parseResponseMessage = (
         throw new Error('Payload length exceeds message length')
       }
 
-      const payloadBytes = new Uint8Array(message, payloadOffset, payloadLength)
+      let payloadBytes = new Uint8Array(message, payloadOffset, payloadLength)
 
       // 如果数据被压缩，需要解压缩
       if (compressionType === CompressionType.gzip) {
-        throw new Error('gzip decompression not implemented')
-        // try {
-        //   payloadBytes = gzipDecompress(payloadBytes)
-        // } catch (e) {
-        //   console.warn('Failed to decompress gzip data:', e)
-        //   // 如果解压失败，尝试直接使用原始数据
-        // }
+        try {
+          payloadBytes = new Uint8Array(pako.ungzip(payloadBytes))
+        } catch (e) {
+          console.warn('Failed to decompress gzip data:', e)
+          // 如果解压失败，尝试直接使用原始数据
+        }
       }
 
       if (serializationType === SerializationType.json) {
@@ -90,7 +90,7 @@ export const parseResponseMessage = (
         throw new Error('Error message length exceeds message length')
       }
 
-      const errorMessageBytes = new Uint8Array(
+      let errorMessageBytes = new Uint8Array(
         message,
         errorMessageOffset,
         errorMessageLength,
@@ -98,12 +98,11 @@ export const parseResponseMessage = (
 
       // 如果错误消息被压缩，需要解压缩
       if (compressionType === CompressionType.gzip) {
-        throw new Error('gzip decompression not implemented')
-        // try {
-        //   errorMessageBytes = gzipDecompress(errorMessageBytes)
-        // } catch (e) {
-        //   console.warn('Failed to decompress error message:', e)
-        // }
+        try {
+          errorMessageBytes = new Uint8Array(pako.ungzip(errorMessageBytes))
+        } catch (e) {
+          console.warn('Failed to decompress error message:', e)
+        }
       }
 
       const errorMessage = new TextDecoder().decode(errorMessageBytes)
@@ -132,19 +131,21 @@ export const serializeRequestMessage = (
   let serializationType: SerializationType
   let payloadBytes: Uint8Array
 
-  if (typeof payload === 'object') {
+  if (typeof payload === 'object' && !(payload instanceof Uint8Array)) {
     payloadBytes = new TextEncoder().encode(JSON.stringify(payload))
     serializationType = SerializationType.json
-    // 暂时不压缩，等后续安装pako库
-    if (compressionType === CompressionType.gzip) {
-      console.warn('GZIP compression not implemented, using uncompressed data')
-    }
   } else {
-    payloadBytes = payload
+    payloadBytes = payload as Uint8Array
     serializationType = SerializationType.none
-    // 暂时不压缩音频数据
-    if (compressionType === CompressionType.gzip) {
-      console.warn('GZIP compression not implemented, using uncompressed data')
+  }
+
+  // 应用压缩
+  if (compressionType === CompressionType.gzip) {
+    try {
+      payloadBytes = new Uint8Array(pako.gzip(payloadBytes))
+    } catch (e) {
+      console.warn('GZIP compression failed, using uncompressed data:', e)
+      compressionType = CompressionType.none // 回退到无压缩
     }
   }
 
@@ -162,26 +163,6 @@ export const serializeRequestMessage = (
 
   return buffer
 }
-
-// 简单的gzip压缩实现，或者你可以安装pako库
-// 如果有pako: import * as pako from 'pako'
-// function gzipCompress(data: Uint8Array): Uint8Array {
-//   // 临时实现：如果你有pako库，使用以下代码：
-//   // return pako.gzip(data)
-//
-//   // 当前简化实现，不压缩（用于测试）
-//   // 实际部署时需要安装pako并启用真正的压缩
-//   console.warn('Using uncompressed data - install pako for proper gzip compression')
-//   return new Uint8Array(data) // 修复类型错误
-// }
-
-// function gzipDecompress(data: Uint8Array): Uint8Array {
-//   // 如果你有pako库：
-//   // return pako.ungzip(data)
-//
-//   // 当前简化实现
-//   return new Uint8Array(data) // 修复类型错误
-// }
 
 export const createFullClientRequest = (
   userId: bigint,

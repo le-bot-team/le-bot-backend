@@ -43,14 +43,15 @@ export class AsrApi {
       currentSeq = -this._sequenceNumber
     } else {
       sequenceNumberType = SequenceNumberType.positive
-      this._sequenceNumber++ // 非最后包递增序列号
+      // 非最后包递增序列号
+      this._sequenceNumber++
     }
 
     this._ws.send(
       serializeRequestMessage(
         MessageType.audioOnlyRequest,
         sequenceNumberType,
-        CompressionType.none,
+        CompressionType.gzip, // 使用GZIP压缩，与Python脚本保持一致
         audioData,
         currentSeq,
       ),
@@ -106,7 +107,7 @@ export class AsrApi {
           serializeRequestMessage(
             MessageType.fullClientRequest,
             SequenceNumberType.positive,
-            CompressionType.none,
+            CompressionType.gzip, // 使用GZIP压缩，与Python脚本保持一致
             createFullClientRequest(this._userId, this._deviceId),
             this._sequenceNumber,
           ),
