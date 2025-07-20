@@ -38,8 +38,8 @@ export class AsrApi {
     let currentSeq = this._sequenceNumber
 
     if (isLast) {
-      // 最后一个包：使用负序列号并设置特殊标志
-      sequenceNumberType = SequenceNumberType.negative
+      // 最后一个包：使用NEG_WITH_SEQUENCE标志和负序列号
+      sequenceNumberType = SequenceNumberType.negativeWithSequence
       currentSeq = -this._sequenceNumber
     } else {
       sequenceNumberType = SequenceNumberType.positive
@@ -148,16 +148,42 @@ export class AsrApi {
               message.sequenceNumberType ===
               SequenceNumberType.negativeWithSequence
             ) {
-              // this._canSendAudio = false
+              log.debug(
+                { sequenceNumber: message.sequenceNumber },
+                'Received last message with sequence number',
+              )
             }
             if (message.serializationType === SerializationType.json) {
+              const payload = message.payload as {
+                result: { text: string }
+                utterances?: {
+                  definite: boolean
+                  start_time: number
+                  end_time: number
+                  text: string
+                  words: {
+                    start_time: number
+                    end_time: number
+                    text: string
+                  }[]
+                }[]
+              }
               log.debug(
-                (message.payload as { result: object }).result,
+                {
+                  text: payload.result.text,
+                  words: payload.utterances?.map(
+                    (utterance) => utterance.words,
+                  ),
+                },
                 'Text data received',
+              )
+            } else {
+              log.info(
+                { length: message.payload.byteLength },
+                'Binary data received',
               )
             }
           }
-          log.debug(message, 'Raw message received')
         } catch (e) {
           log.warn(e as Error, 'Failed to parse message')
           this._isReady = false

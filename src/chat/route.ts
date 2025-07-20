@@ -54,13 +54,13 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
           break
         }
         case 'inputAudioStream': {
-          log.debug({ messageId: message.id }, 'inputAudioStream')
+          log.info({ messageId: message.id }, 'WsAction inputAudioStream')
           apiWrapper.inputAudioStream(message.data.buffer)
           break
         }
         case 'inputAudioComplete': {
-          log.debug({ messageId: message.id }, 'inputAudioComplete')
-          apiWrapper.inputAudioComplete()
+          log.info({ messageId: message.id }, 'WsAction inputAudioComplete')
+          apiWrapper.inputAudioComplete(message.data.buffer)
           break
         }
         case 'clearContext': {

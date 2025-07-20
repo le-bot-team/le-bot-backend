@@ -34,6 +34,9 @@ export const wsInputAudioStreamRequestValidator = t.Object({
 export const wsInputAudioCompleteRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('inputAudioComplete'),
+  data: t.Object({
+    buffer: t.String(), // Base64 encoded audio data (最后一个音频片段)
+  }),
 })
 
 export const wsClearContextRequestValidator = t.Object({

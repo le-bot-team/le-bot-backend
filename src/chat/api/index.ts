@@ -34,10 +34,10 @@ export class ApiWrapper {
   }
 
   inputAudioStream(buffer: string): boolean {
-    return this._asrApi.sendAudioBase64(buffer)
+    return this._asrApi.sendAudioBase64(buffer, false)
   }
 
-  inputAudioComplete(): boolean {
-    return this._asrApi.sendAudioBase64('', true)
+  inputAudioComplete(buffer: string): boolean {
+    return this._asrApi.sendAudioBase64(buffer, true)
   }
 }
