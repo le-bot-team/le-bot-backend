@@ -54,12 +54,11 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
           break
         }
         case 'inputAudioStream': {
-          log.info({ messageId: message.id }, 'WsAction inputAudioStream')
           apiWrapper.inputAudioStream(message.data.buffer)
           break
         }
         case 'inputAudioComplete': {
-          log.info({ messageId: message.id }, 'WsAction inputAudioComplete')
+          log.debug({ messageId: message.id }, 'WsAction inputAudioComplete')
           apiWrapper.inputAudioComplete(message.data.buffer)
           break
         }
@@ -76,9 +75,5 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
           break
         }
       }
-      ws.send({
-        action: message.action,
-        time: Date.now(),
-      })
     },
   })
