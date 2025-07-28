@@ -3,6 +3,9 @@ export enum MessageType {
   audioOnlyRequest = 0b0010,
   fullServerResponse = 0b1001,
   errorResponse = 0b1111,
+  // TTS specific message types
+  ttsRequest = 0b0100,
+  ttsResponse = 0b1100,
 }
 
 export enum SequenceNumberType {
@@ -89,3 +92,49 @@ export interface ErrorResponse {
   errorType: ErrorType
   errorMessage: string
 }
+
+// TTS related types
+export interface TtsRequest {
+  user?: {
+    uid?: string
+    did?: string
+    platform?: string
+    sdk_version?: string
+    app_version?: string
+  }
+  audio: {
+    format: 'pcm' | 'wav' | 'mp3'
+    codec?: 'raw' | 'opus'
+    rate?: 16000 | 24000 | 44100
+    bits?: 16 | 24
+    channel?: 1 | 2
+  }
+  request: {
+    text: string
+    model_name?: string
+    voice_type?: string
+    speed?: number // 语速，范围 0.5-2.0
+    volume?: number // 音量，范围 0.1-3.0
+    pitch?: number // 音调，范围 0.5-2.0
+    emotion?: string // 情感
+    language?: string // 语言
+  }
+}
+
+export type TtsServerResponse = {
+  messageType: MessageType.ttsResponse
+  sequenceNumberType: SequenceNumberType
+  sequenceNumber: number
+} & (
+  | {
+      serializationType: SerializationType.json
+      payload: {
+        audio?: string // base64 encoded audio data
+        finished?: boolean
+      }
+    }
+  | {
+      serializationType: SerializationType.none
+      payload: Uint8Array // raw audio data
+    }
+)

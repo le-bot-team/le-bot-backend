@@ -5,9 +5,11 @@ import {
   MessageType,
   SequenceNumberType,
   SerializationType,
+  TtsServerResponse,
 } from './types'
 import {
   createFullClientRequest,
+  createTtsRequest,
   parseResponseMessage,
   serializeRequestMessage,
 } from './utils'
@@ -192,5 +194,195 @@ export class AsrApi {
 }
 
 export class TtsApi {
+  private _connectionPromise: Promise<boolean> | null = null
+  private _isReady = false
+  private _sequenceNumber = 1
+  private _ws: WebSocket | undefined
 
+  onAudioData: ((audioData: Uint8Array) => void) | undefined
+  onFinish: (() => void) | undefined
+
+  constructor(
+    private readonly _connectId: string,
+    private readonly _userId: bigint,
+    private readonly _deviceId: string,
+  ) {}
+
+  async synthesizeText(
+    text: string,
+    options?: {
+      voiceType?: string
+      speed?: number
+      volume?: number
+      pitch?: number
+      emotion?: string
+      language?: string
+    },
+  ): Promise<boolean> {
+    if (!this._ws || !this._isReady) {
+      log.warn('TtsApi is not ready to synthesize text')
+      return false
+    }
+
+    const ttsRequest = createTtsRequest(
+      this._userId,
+      this._deviceId,
+      text,
+      options,
+    )
+
+    this._ws.send(
+      serializeRequestMessage(
+        MessageType.ttsRequest,
+        SequenceNumberType.positive,
+        CompressionType.gzip,
+        ttsRequest,
+        this._sequenceNumber,
+      ),
+    )
+    this._sequenceNumber++
+    return true
+  }
+
+  close() {
+    this._ws?.close()
+    this._isReady = false
+    this._sequenceNumber = 1
+  }
+
+  async connect(): Promise<boolean> {
+    if (this._connectionPromise) {
+      return this._connectionPromise
+    }
+
+    if (this._ws && this._isReady) {
+      log.warn('WebSocket is already connected')
+      return true
+    }
+
+    this._connectionPromise = new Promise<boolean>((resolve) => {
+      this._ws = new WebSocket(
+        'wss://openspeech.bytedance.com/api/v3/tts/ws',
+        {
+          headers: {
+            'X-Api-Access-Key': process.env.ACCESS_TOKEN,
+            'X-Api-App-Key': process.env.APP_ID,
+            'X-Api-Resource-Id': 'volc.tts.sauc.basic',
+            'X-Api-Connect-Id': this._connectId,
+          },
+        },
+      )
+
+      this._ws.onclose = (event) => {
+        log.warn(event, 'TTS WebSocket closed')
+        this._isReady = false
+        this._sequenceNumber = 1
+        if (this._ws) {
+          this._ws.onopen = null
+          this._ws.onclose = null
+          this._ws = undefined
+        }
+        this._connectionPromise = null
+        resolve(false)
+      }
+
+      this._ws.onopen = () => {
+        // Send initial configuration for TTS
+        this._ws?.send(
+          serializeRequestMessage(
+            MessageType.fullClientRequest,
+            SequenceNumberType.positive,
+            CompressionType.gzip,
+            createFullClientRequest(this._userId, this._deviceId),
+            this._sequenceNumber,
+          ),
+        )
+        this._sequenceNumber++
+        log.info('TTS WebSocket connection established')
+      }
+
+      if (!this._ws) {
+        log.error('TTS WebSocket is not initialized')
+        this._connectionPromise = null
+        resolve(false)
+        return
+      }
+
+      this._ws.onmessage = async (event) => {
+        try {
+          const message = parseResponseMessage(event.data.buffer)
+
+          if (message.messageType === MessageType.errorResponse) {
+            log.warn(
+              {
+                errorType: message.errorType,
+                errorMessage: JSON.parse(message.errorMessage),
+              },
+              'TTS Error response: ',
+            )
+            this._isReady = false
+            this._connectionPromise = null
+            resolve(false)
+            return
+          }
+
+          if (message.sequenceNumber === 1) {
+            log.info('TTS configuration updated successfully')
+            this._isReady = true
+            resolve(true)
+          } else if (message.messageType === MessageType.ttsResponse) {
+            const ttsMessage = message as TtsServerResponse
+
+            if (ttsMessage.serializationType === SerializationType.json) {
+              const payload = ttsMessage.payload as {
+                audio?: string
+                finished?: boolean
+              }
+
+              if (payload.audio) {
+                // Convert base64 audio to Uint8Array
+                const audioData = Uint8Array.fromBase64(payload.audio)
+                this.onAudioData?.(audioData)
+
+                log.debug(
+                  { audioLength: audioData.length },
+                  'TTS audio data received',
+                )
+              }
+
+              if (payload.finished) {
+                log.debug('TTS synthesis finished')
+                this.onFinish?.()
+              }
+            } else {
+              // Binary audio data
+              const audioData = ttsMessage.payload as Uint8Array
+              this.onAudioData?.(audioData)
+
+              log.debug(
+                { audioLength: audioData.length },
+                'TTS binary audio data received',
+              )
+
+              // Check if this is the last message
+              if (
+                ttsMessage.sequenceNumberType ===
+                SequenceNumberType.negativeWithSequence
+              ) {
+                log.debug('TTS synthesis finished (last message)')
+                this.onFinish?.()
+              }
+            }
+          }
+        } catch (e) {
+          log.warn(e as Error, 'Failed to parse TTS message')
+          this._isReady = false
+          this._connectionPromise = null
+          resolve(false)
+        }
+      }
+    })
+
+    return this._connectionPromise
+  }
 }

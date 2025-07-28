@@ -27,6 +27,7 @@ export class ApiWrapper {
       'http://cafuuchino.studio26f.org:22480',
       this._userId,
     )
+    this._ttsApi = new TtsApi(this._wsClient.id, this._userId, this._deviceId)
 
     this._asrApi.onFinish = async (recognized) => {
       const fullAnswer = await this._difyApi.chatMessage(

@@ -8,6 +8,8 @@ import {
   MessageType,
   SequenceNumberType,
   SerializationType,
+  TtsRequest,
+  TtsServerResponse,
 } from './types'
 
 /*
@@ -22,7 +24,7 @@ Header structure for WebSocket messages:
 
 export const parseResponseMessage = (
   message: ArrayBuffer,
-): FullServerResponse | ErrorResponse => {
+): FullServerResponse | ErrorResponse | TtsServerResponse => {
   const view = new DataView(message)
 
   const protocolVersion = view.getUint8(0) >> 4
@@ -76,6 +78,42 @@ export const parseResponseMessage = (
       }
       return {
         messageType: MessageType.fullServerResponse,
+        sequenceNumberType: sequenceNumberType as SequenceNumberType,
+        sequenceNumber,
+        serializationType: SerializationType.none,
+        payload: payloadBytes,
+      }
+    }
+    case MessageType.ttsResponse: {
+      const sequenceNumber = view.getUint32(4)
+      const payloadLength = view.getUint32(8)
+      const payloadOffset = 12
+      if (payloadOffset + payloadLength > message.byteLength) {
+        throw new Error('Payload length exceeds message length')
+      }
+
+      let payloadBytes = new Uint8Array(message, payloadOffset, payloadLength)
+
+      // 如果数据被压缩，需要解压缩
+      if (compressionType === CompressionType.gzip) {
+        try {
+          payloadBytes = new Uint8Array(ungzip(payloadBytes))
+        } catch (e) {
+          console.warn('Failed to decompress gzip data:', e)
+        }
+      }
+
+      if (serializationType === SerializationType.json) {
+        return {
+          messageType: MessageType.ttsResponse,
+          sequenceNumberType: sequenceNumberType as SequenceNumberType,
+          sequenceNumber,
+          serializationType: SerializationType.json,
+          payload: JSON.parse(new TextDecoder().decode(payloadBytes)),
+        }
+      }
+      return {
+        messageType: MessageType.ttsResponse,
         sequenceNumberType: sequenceNumberType as SequenceNumberType,
         sequenceNumber,
         serializationType: SerializationType.none,
@@ -185,6 +223,44 @@ export const createFullClientRequest = (
       enable_punc: true,
       enable_ddc: true,
       show_utterances: true,
+    },
+  }
+}
+
+export const createTtsRequest = (
+  userId: bigint,
+  deviceId: string,
+  text: string,
+  options?: {
+    voiceType?: string
+    speed?: number
+    volume?: number
+    pitch?: number
+    emotion?: string
+    language?: string
+  },
+): TtsRequest => {
+  return {
+    user: {
+      uid: userId.toString(),
+      did: deviceId,
+    },
+    audio: {
+      format: 'wav',
+      codec: 'raw',
+      rate: 16000,
+      bits: 16,
+      channel: 1,
+    },
+    request: {
+      text,
+      model_name: 'volcano_tts',
+      voice_type: options?.voiceType || 'BV001_streaming',
+      speed: options?.speed || 1.0,
+      volume: options?.volume || 1.0,
+      pitch: options?.pitch || 1.0,
+      emotion: options?.emotion || 'neutral',
+      language: options?.language || 'zh',
     },
   }
 }
