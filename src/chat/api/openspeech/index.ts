@@ -13,11 +13,12 @@ import {
 } from './utils'
 
 export class AsrApi {
-  private _audioData: Uint8Array | undefined
-  private _ws: WebSocket | undefined
   private _connectionPromise: Promise<boolean> | null = null
-  private _isReady = false // 添加状态标记
-  private _sequenceNumber = 1 // 添加序列号管理
+  private _isReady = false
+  private _sequenceNumber = 1
+  private _ws: WebSocket | undefined
+
+  onFinish: ((recognized: string) => void) | undefined
 
   constructor(
     private readonly _connectId: string,
@@ -27,23 +28,19 @@ export class AsrApi {
 
   sendAudioBase64(audioDataBase64: string, isLast = false): boolean {
     if (!this._ws || !this._isReady) {
-      // 检查是否真正准备好
       log.warn('AsrApi is not ready to send audio data')
       return false
     }
     const audioData = Uint8Array.fromBase64(audioDataBase64)
 
-    // 根据Python脚本的逻辑处理序列号
     let sequenceNumberType: SequenceNumberType
     let currentSeq = this._sequenceNumber
 
     if (isLast) {
-      // 最后一个包：使用NEG_WITH_SEQUENCE标志和负序列号
       sequenceNumberType = SequenceNumberType.negativeWithSequence
       currentSeq = -this._sequenceNumber
     } else {
       sequenceNumberType = SequenceNumberType.positive
-      // 非最后包递增序列号
       this._sequenceNumber++
     }
 
@@ -51,7 +48,7 @@ export class AsrApi {
       serializeRequestMessage(
         MessageType.audioOnlyRequest,
         sequenceNumberType,
-        CompressionType.gzip, // 使用GZIP压缩，与Python脚本保持一致
+        CompressionType.gzip,
         audioData,
         currentSeq,
       ),
@@ -61,8 +58,8 @@ export class AsrApi {
 
   close() {
     this._ws?.close()
-    this._isReady = false // 重置状态
-    this._sequenceNumber = 1 // 重置序列号
+    this._isReady = false
+    this._sequenceNumber = 1
   }
 
   async connect(): Promise<boolean> {
@@ -71,7 +68,6 @@ export class AsrApi {
     }
 
     if (this._ws && this._isReady) {
-      // 检查是否真正准备好
       log.warn('WebSocket is already connected')
       return true
     }
@@ -90,9 +86,8 @@ export class AsrApi {
       )
       this._ws.onclose = (event) => {
         log.warn(event, 'WebSocket closed')
-        this._audioData = undefined
-        this._isReady = false // 重置状态
-        this._sequenceNumber = 1 // 重置序列号
+        this._isReady = false
+        this._sequenceNumber = 1
         if (this._ws) {
           this._ws.onopen = null
           this._ws.onclose = null
@@ -102,17 +97,16 @@ export class AsrApi {
         resolve(false)
       }
       this._ws.onopen = () => {
-        // 注意：这里不要立即认为连接成功，需要等待配置响应
         this._ws?.send(
           serializeRequestMessage(
             MessageType.fullClientRequest,
             SequenceNumberType.positive,
-            CompressionType.gzip, // 使用GZIP压缩，与Python脚本保持一致
+            CompressionType.gzip,
             createFullClientRequest(this._userId, this._deviceId),
             this._sequenceNumber,
           ),
         )
-        this._sequenceNumber++ // 发送配置请求后递增序列号
+        this._sequenceNumber++
         log.info('ASR WebSocket connection established')
       }
 
@@ -141,18 +135,9 @@ export class AsrApi {
           }
           if (message.sequenceNumber === 1) {
             log.info('ASR configuration updated successfully')
-            this._isReady = true // 只有在这里才标记为准备好
+            this._isReady = true
             resolve(true)
           } else {
-            if (
-              message.sequenceNumberType ===
-              SequenceNumberType.negativeWithSequence
-            ) {
-              log.debug(
-                { sequenceNumber: message.sequenceNumber },
-                'Received last message with sequence number',
-              )
-            }
             if (message.serializationType === SerializationType.json) {
               const payload = message.payload as {
                 result: { text: string }
@@ -177,6 +162,16 @@ export class AsrApi {
                 },
                 'Text data received',
               )
+              if (
+                message.sequenceNumberType ===
+                SequenceNumberType.negativeWithSequence
+              ) {
+                log.debug(
+                  { sequenceNumber: message.sequenceNumber },
+                  'Received last message with sequence number',
+                )
+                this.onFinish?.(payload.result.text)
+              }
             } else {
               log.info(
                 { length: message.payload.byteLength },
@@ -194,4 +189,8 @@ export class AsrApi {
     })
     return this._connectionPromise
   }
+}
+
+export class TtsApi {
+
 }

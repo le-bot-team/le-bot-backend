@@ -1,4 +1,4 @@
-import * as pako from 'pako'
+import { gzip, ungzip } from 'pako'
 import {
   CompressionType,
   ErrorResponse,
@@ -58,7 +58,7 @@ export const parseResponseMessage = (
       // 如果数据被压缩，需要解压缩
       if (compressionType === CompressionType.gzip) {
         try {
-          payloadBytes = new Uint8Array(pako.ungzip(payloadBytes))
+          payloadBytes = new Uint8Array(ungzip(payloadBytes))
         } catch (e) {
           console.warn('Failed to decompress gzip data:', e)
           // 如果解压失败，尝试直接使用原始数据
@@ -99,7 +99,7 @@ export const parseResponseMessage = (
       // 如果错误消息被压缩，需要解压缩
       if (compressionType === CompressionType.gzip) {
         try {
-          errorMessageBytes = new Uint8Array(pako.ungzip(errorMessageBytes))
+          errorMessageBytes = new Uint8Array(ungzip(errorMessageBytes))
         } catch (e) {
           console.warn('Failed to decompress error message:', e)
         }
@@ -139,10 +139,9 @@ export const serializeRequestMessage = (
     serializationType = SerializationType.none
   }
 
-  // 应用压缩
   if (compressionType === CompressionType.gzip) {
     try {
-      payloadBytes = new Uint8Array(pako.gzip(payloadBytes))
+      payloadBytes = new Uint8Array(gzip(payloadBytes))
     } catch (e) {
       console.warn('GZIP compression failed, using uncompressed data:', e)
       compressionType = CompressionType.none // 回退到无压缩
