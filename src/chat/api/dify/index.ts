@@ -3,6 +3,8 @@ import { log } from '@log'
 import { DifyStreamMessage } from './types'
 
 export class DifyApi {
+  onMessage: ((segment: string) => void) | undefined
+
   constructor(
     private readonly _baseUrl: string,
     private readonly _userId: bigint,
@@ -12,7 +14,6 @@ export class DifyApi {
     conversationId: string,
     query: string,
     inputs: Record<string, string> = {},
-    onMessage?: (segment: string) => void,
   ): Promise<string> {
     const response = await fetch(`${this._baseUrl}/v1/chat-messages`, {
       method: 'POST',
@@ -61,7 +62,7 @@ export class DifyApi {
             const data: DifyStreamMessage = JSON.parse(jsonStr)
             if (data.event === 'message' && data.answer) {
               fullAnswer += data.answer
-              onMessage?.(data.answer)
+              this.onMessage?.(data.answer)
 
               log.debug(`Received message chunk: ${data.answer}`)
             }

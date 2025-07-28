@@ -32,22 +32,6 @@ export class ApiWrapper {
       const fullAnswer = await this._difyApi.chatMessage(
         this._conversationId,
         recognized,
-        {},
-        (segment) => {
-          if (this._outputText) {
-            this._wsClient.send(
-              JSON.stringify({
-                action: 'outputTextStream',
-                data: {
-                  chatId: this._wsClient.id,
-                  conversationId: this._conversationId,
-                  role: 'assistant',
-                  text: segment,
-                },
-              }),
-            )
-          }
-        },
       )
       this._wsClient.send(
         JSON.stringify({
@@ -60,6 +44,21 @@ export class ApiWrapper {
           },
         }),
       )
+    }
+    this._difyApi.onMessage = (segment) => {
+      if (this._outputText) {
+        this._wsClient.send(
+          JSON.stringify({
+            action: 'outputTextStream',
+            data: {
+              chatId: this._wsClient.id,
+              conversationId: this._conversationId,
+              role: 'assistant',
+              text: segment,
+            },
+          }),
+        )
+      }
     }
   }
 
