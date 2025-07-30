@@ -70,6 +70,16 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
           log.debug({ messageId: message.id }, 'cancelOutput')
           break
         }
+        case 'ttsTest': {
+          log.debug({ messageId: message.id }, 'ttsTest')
+          const result = await apiWrapper.testTts(message.data.text)
+          ws.send({
+            id: message.id,
+            action: 'ttsTest',
+            success: result,
+          })
+          break
+        }
         default: {
           ws.close(1003, 'Invalid action')
           break

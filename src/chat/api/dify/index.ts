@@ -63,8 +63,6 @@ export class DifyApi {
             if (data.event === 'message' && data.answer) {
               fullAnswer += data.answer
               this.onMessage?.(data.answer)
-
-              log.debug(`Received message chunk: ${data.answer}`)
             }
           } catch (parseError) {
             log.warn(

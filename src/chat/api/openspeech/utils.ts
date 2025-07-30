@@ -1,210 +1,268 @@
 import { gzip, ungzip } from 'pako'
 import {
+  AsrRequest,
+  AsrResponse,
   CompressionType,
   ErrorResponse,
   ErrorType,
-  FullClientRequest,
-  FullServerResponse,
+  HeaderSizeType,
+  MessageFlagType,
   MessageType,
-  SequenceNumberType,
+  ProtocolVersionType,
+  ResponseType,
   SerializationType,
+  TtsEventType,
   TtsRequest,
-  TtsServerResponse,
+  TtsResponse,
 } from './types'
 
 /*
-Header structure for WebSocket messages:
-| Byte | bit 7 ~ 4                         | bit 3 ~ 0                         |
-| ---- | --------------------------------- | --------------------------------- |
-| 0    | Protocol version                  | Header size                       |
-| 1    | Message type                      | Message type specific flags       |
-| 2    | Message serialization method      | Message compression               |
-| 3    | Reserved                          | Reserved                          |
+Message format:
+0                 1                 2                 3
+| 0 1 2 3 4 5 6 7 | 0 1 2 3 4 5 6 7 | 0 1 2 3 4 5 6 7 | 0 1 2 3 4 5 6 7 |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|    Version      |   Header Size   |     Msg Type    |      Flags      |
+|   (4 bits)      |    (4 bits)     |     (4 bits)    |     (4 bits)    |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+| Serialization   |   Compression   |           Reserved                |
+|   (4 bits)      |    (4 bits)     |           (8 bits)                |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                                                                       |
+|                   Optional Header Extensions                          |
+|                     (if Header Size > 1)                              |
+|                                                                       |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                                                                       |
+|                           Payload                                     |
+|                      (variable length)                                |
+|                                                                       |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
 
-export const parseResponseMessage = (
-  message: ArrayBuffer,
-): FullServerResponse | ErrorResponse | TtsServerResponse => {
-  const view = new DataView(message)
-
-  const protocolVersion = view.getUint8(0) >> 4
-  const headerSize = view.getUint8(0) & 0b00001111
-  if (protocolVersion !== 0b0001 || headerSize !== 0b0001) {
-    throw new Error('Unsupported protocol version or header size')
+const parseMessage = (message: ArrayBuffer) => {
+  const dataView = new DataView(message)
+  const protocolVersion = dataView.getUint8(0) >> 4
+  const headerSize = dataView.getUint8(0) & 0x0f
+  const messageType = dataView.getUint8(1) >> 4
+  const messageFlag = dataView.getUint8(1) & 0x0f
+  const serializationType = dataView.getUint8(2) >> 4
+  const compressionType = dataView.getUint8(2) & 0x0f
+  const reserved = dataView.getUint8(3)
+  if (headerSize > 0b0001) {
+    throw new Error('Unsupported header size')
   }
 
-  const messageType = view.getUint8(1) >> 4
-  const sequenceNumberType = view.getUint8(1) & 0b00001111
-  const serializationType = view.getUint8(2) >> 4
-  const compressionType = view.getUint8(2) & 0b00001111
   if (
+    !(protocolVersion in ProtocolVersionType) ||
+    !(headerSize in HeaderSizeType) ||
     !(messageType in MessageType) ||
-    !(sequenceNumberType in SequenceNumberType) ||
+    !(messageFlag in MessageFlagType) ||
     !(serializationType in SerializationType) ||
     !(compressionType in CompressionType)
   ) {
     throw new Error('Invalid message format')
   }
 
-  switch (messageType) {
-    case MessageType.fullServerResponse: {
-      const sequenceNumber = view.getUint32(4)
-      const payloadLength = view.getUint32(8)
-      const payloadOffset = 12
-      if (payloadOffset + payloadLength > message.byteLength) {
-        throw new Error('Payload length exceeds message length')
-      }
+  return {
+    protocolVersion: protocolVersion as ProtocolVersionType,
+    headerSize: headerSize as HeaderSizeType,
+    messageType: messageType as MessageType,
+    messageFlag: messageFlag as MessageFlagType,
+    serializationType: serializationType as SerializationType,
+    compressionType: compressionType as CompressionType,
+    reserved,
+    headerExtensions:
+      headerSize > 0b0001 ? message.slice(4, 4 * headerSize) : undefined,
+    payload: message.slice(4 * headerSize, message.byteLength),
+  }
+}
 
-      let payloadBytes = new Uint8Array(message, payloadOffset, payloadLength)
+export const parseResponseMessage = (
+  rawMessage: ArrayBuffer,
+): AsrResponse | TtsResponse | ErrorResponse => {
+  // console.log({
+  //   raw: Array.from(new Uint8Array(rawMessage))
+  //     .map((b) => b.toString(2).padStart(8, '0'))
+  //     .join(' '),
+  // })
+  const {
+    messageType,
+    messageFlag,
+    serializationType,
+    compressionType,
+    payload,
+  } = parseMessage(rawMessage)
 
-      // 如果数据被压缩，需要解压缩
-      if (compressionType === CompressionType.gzip) {
-        try {
-          payloadBytes = new Uint8Array(ungzip(payloadBytes))
-        } catch (e) {
-          console.warn('Failed to decompress gzip data:', e)
-          // 如果解压失败，尝试直接使用原始数据
+  // console.log({
+  //   protocolVersion,
+  //   headerSize,
+  //   messageType,
+  //   messageFlag,
+  //   serializationType,
+  //   compressionType,
+  //   reserved,
+  //   headerExtensions,
+  //   payload,
+  // })
+
+  if (messageFlag === MessageFlagType.withEvent) {
+    const dataView = new DataView(payload)
+    const ttsEventTypeCode = dataView.getUint32(0)
+    if (!(ttsEventTypeCode in TtsEventType)) {
+      throw new Error('Invalid message format')
+    }
+    const ttsEventType = ttsEventTypeCode as TtsEventType
+    switch (ttsEventType) {
+      case TtsEventType.connectionStarted:
+      case TtsEventType.sessionStarted:
+      case TtsEventType.ttsResponse: {
+        const idLength = dataView.getUint32(4)
+        const idOffset = 8
+        const id = new TextDecoder().decode(
+          payload.slice(8, idOffset + idLength),
+        )
+        const dataLength = dataView.getUint32(idOffset + idLength)
+        const dataOffset = idOffset + idLength + 4
+        if (dataOffset + dataLength > payload.byteLength) {
+          throw new Error('Payload length exceeds message length')
         }
-      }
-
-      if (serializationType === SerializationType.json) {
+        const dataBytes =
+          compressionType === CompressionType.gzip
+            ? new Uint8Array(
+                ungzip(payload.slice(dataOffset, dataOffset + dataLength)),
+              )
+            : new Uint8Array(payload, dataOffset, dataLength)
         return {
-          messageType: MessageType.fullServerResponse,
-          sequenceNumberType: sequenceNumberType as SequenceNumberType,
-          sequenceNumber,
-          serializationType: SerializationType.json,
-          payload: JSON.parse(new TextDecoder().decode(payloadBytes)),
+          responseType: ResponseType.ttsResponse,
+          messageFlag,
+          serializationType,
+          data:
+            serializationType === SerializationType.json
+              ? JSON.parse(new TextDecoder().decode(dataBytes))
+              : dataBytes,
+          eventType: ttsEventType,
+          id,
         }
       }
-      return {
-        messageType: MessageType.fullServerResponse,
-        sequenceNumberType: sequenceNumberType as SequenceNumberType,
-        sequenceNumber,
-        serializationType: SerializationType.none,
-        payload: payloadBytes,
+      case TtsEventType.sessionFinished:
+      case TtsEventType.ttsSentenceStart:
+      case TtsEventType.ttsSentenceEnd: {
+        return {
+          responseType: ResponseType.ttsResponse,
+          messageFlag,
+          serializationType: SerializationType.json,
+          data: {},
+          eventType: ttsEventType,
+        }
+      }
+      default: {
+        throw new Error(
+          'Response message has an unsupported event type: ' + ttsEventType,
+        )
       }
     }
-    case MessageType.ttsResponse: {
-      const sequenceNumber = view.getUint32(4)
-      const payloadLength = view.getUint32(8)
-      const payloadOffset = 12
-      if (payloadOffset + payloadLength > message.byteLength) {
-        throw new Error('Payload length exceeds message length')
-      }
+  }
 
-      let payloadBytes = new Uint8Array(message, payloadOffset, payloadLength)
+  const dataView = new DataView(payload)
+  const dataCode = dataView.getUint32(0)
+  const dataLength = dataView.getUint32(4)
+  const dataOffset = 8
+  if (dataOffset + dataLength > payload.byteLength) {
+    throw new Error('Error message length exceeds payload length')
+  }
 
-      // 如果数据被压缩，需要解压缩
-      if (compressionType === CompressionType.gzip) {
-        try {
-          payloadBytes = new Uint8Array(ungzip(payloadBytes))
-        } catch (e) {
-          console.warn('Failed to decompress gzip data:', e)
-        }
-      }
+  const dataBytes =
+    compressionType === CompressionType.gzip
+      ? new Uint8Array(
+          ungzip(payload.slice(dataOffset, dataOffset + dataLength)),
+        )
+      : new Uint8Array(payload, dataOffset, dataLength)
 
-      if (serializationType === SerializationType.json) {
-        return {
-          messageType: MessageType.ttsResponse,
-          sequenceNumberType: sequenceNumberType as SequenceNumberType,
-          sequenceNumber,
-          serializationType: SerializationType.json,
-          payload: JSON.parse(new TextDecoder().decode(payloadBytes)),
-        }
-      }
+  switch (messageType) {
+    case MessageType.fullServerResponse: {
       return {
-        messageType: MessageType.ttsResponse,
-        sequenceNumberType: sequenceNumberType as SequenceNumberType,
-        sequenceNumber,
-        serializationType: SerializationType.none,
-        payload: payloadBytes,
+        responseType: ResponseType.asrResponse,
+        messageFlag,
+        sequenceNumber: dataCode,
+        serializationType,
+        data:
+          serializationType === SerializationType.json
+            ? JSON.parse(new TextDecoder().decode(dataBytes))
+            : dataBytes,
       }
     }
     case MessageType.errorResponse: {
-      const errorCode = view.getUint32(4)
-      const errorMessageLength = view.getUint32(8)
-      const errorMessageOffset = 12
-      if (errorMessageOffset + errorMessageLength > message.byteLength) {
-        throw new Error('Error message length exceeds message length')
-      }
-
-      let errorMessageBytes = new Uint8Array(
-        message,
-        errorMessageOffset,
-        errorMessageLength,
-      )
-
-      // 如果错误消息被压缩，需要解压缩
-      if (compressionType === CompressionType.gzip) {
-        try {
-          errorMessageBytes = new Uint8Array(ungzip(errorMessageBytes))
-        } catch (e) {
-          console.warn('Failed to decompress error message:', e)
-        }
-      }
-
-      const errorMessage = new TextDecoder().decode(errorMessageBytes)
       return {
-        messageType: MessageType.errorResponse,
+        responseType: ResponseType.errorResponse,
+        messageFlag: MessageFlagType.noSequence,
         errorType:
-          errorCode >= 55000000 && errorCode < 55100000
+          dataCode >= 55000000 && dataCode < 55100000
             ? ErrorType.internalError
-            : (errorCode as ErrorType),
-        errorMessage,
+            : (dataCode as ErrorType),
+        errorMessage: new TextDecoder().decode(dataBytes),
       }
     }
     default: {
-      throw new Error('Unsupported response message type')
+      throw new Error('Unsupported response rawMessage type')
     }
   }
 }
 
 export const serializeRequestMessage = (
   messageType: MessageType,
-  sequenceNumberType: SequenceNumberType,
+  messageFlag: MessageFlagType,
+  serializationType: SerializationType,
   compressionType: CompressionType,
-  payload: object | Uint8Array,
-  sequenceNumber?: number,
+  extraCode: number,
+  payloads: (string | object | Uint8Array)[],
 ): ArrayBuffer => {
-  let serializationType: SerializationType
-  let payloadBytes: Uint8Array
-
-  if (typeof payload === 'object' && !(payload instanceof Uint8Array)) {
-    payloadBytes = new TextEncoder().encode(JSON.stringify(payload))
-    serializationType = SerializationType.json
-  } else {
-    payloadBytes = payload as Uint8Array
-    serializationType = SerializationType.none
-  }
-
-  if (compressionType === CompressionType.gzip) {
-    try {
-      payloadBytes = new Uint8Array(gzip(payloadBytes))
-    } catch (e) {
-      console.warn('GZIP compression failed, using uncompressed data:', e)
-      compressionType = CompressionType.none // 回退到无压缩
+  const payloadBytesList: Uint8Array[] = []
+  for (const payload of payloads) {
+    let payloadBytes: Uint8Array
+    if (payload instanceof Uint8Array) {
+      payloadBytes = payload
+    } else if (typeof payload === 'object') {
+      payloadBytes = new TextEncoder().encode(JSON.stringify(payload))
+    } else {
+      payloadBytes = new TextEncoder().encode(payload)
     }
+
+    if (compressionType === CompressionType.gzip) {
+      payloadBytes = new Uint8Array(gzip(payloadBytes))
+    }
+    payloadBytesList.push(payloadBytes)
   }
 
-  const buffer = new ArrayBuffer(12 + payloadBytes.length)
+  const buffer = new ArrayBuffer(
+    8 + payloadBytesList.reduce((sum, bytes) => sum + 4 + bytes.length, 0),
+  )
   const view = new DataView(buffer)
 
   view.setUint8(0, (0b0001 << 4) | 0b0001) // Protocol version 1, header size 1
-  view.setUint8(1, (messageType << 4) | sequenceNumberType)
+  view.setUint8(1, (messageType << 4) | messageFlag)
   view.setUint8(2, (serializationType << 4) | compressionType)
   view.setUint8(3, 0)
-  view.setUint32(4, sequenceNumber || 1)
-  view.setUint32(8, payloadBytes.length)
+  view.setUint32(4, extraCode)
 
-  new Uint8Array(buffer, 12).set(payloadBytes)
+  for (
+    let index = 0, currentOffset = 8;
+    index < payloadBytesList.length;
+    index++
+  ) {
+    const payloadBytes = payloadBytesList[index]
+    view.setUint32(currentOffset, payloadBytes.length)
+    currentOffset += 4
+    new Uint8Array(buffer, currentOffset).set(payloadBytes)
+    currentOffset += payloadBytes.length
+  }
 
   return buffer
 }
 
-export const createFullClientRequest = (
+export const createAsrRequestData = (
   userId: bigint,
   deviceId: string,
-): FullClientRequest => {
+): AsrRequest => {
   return {
     user: {
       uid: userId.toString(),
@@ -227,40 +285,27 @@ export const createFullClientRequest = (
   }
 }
 
-export const createTtsRequest = (
+export const createTtsRequestData = (
   userId: bigint,
-  deviceId: string,
-  text: string,
-  options?: {
-    voiceType?: string
-    speed?: number
-    volume?: number
-    pitch?: number
-    emotion?: string
-    language?: string
-  },
+  event: TtsEventType,
+  voiceType: string,
+  text?: string,
 ): TtsRequest => {
   return {
     user: {
       uid: userId.toString(),
-      did: deviceId,
     },
-    audio: {
-      format: 'wav',
-      codec: 'raw',
-      rate: 16000,
-      bits: 16,
-      channel: 1,
-    },
-    request: {
+    event: event,
+    req_params: {
       text,
-      model_name: 'volcano_tts',
-      voice_type: options?.voiceType || 'BV001_streaming',
-      speed: options?.speed || 1.0,
-      volume: options?.volume || 1.0,
-      pitch: options?.pitch || 1.0,
-      emotion: options?.emotion || 'neutral',
-      language: options?.language || 'zh',
+      speaker: voiceType,
+      audio_params: {
+        format: 'pcm',
+        sample_rate: 16000,
+      },
+      additions: JSON.stringify({
+        disable_markdown_filter: false,
+      }),
     },
   }
 }

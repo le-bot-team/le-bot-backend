@@ -49,12 +49,21 @@ export const wsCancelOutputRequestValidator = t.Object({
   action: t.Literal('cancelOutput'),
 })
 
+export const wsTtsTestRequestValidator = t.Object({
+  id: t.String(),
+  action: t.Literal('ttsTest'),
+  data: t.Object({
+    text: t.String(),
+  }),
+})
+
 export const wsRequestValidator = t.Union([
   wsUpdateConfigRequestValidator,
   wsInputAudioStreamRequestValidator,
   wsInputAudioCompleteRequestValidator,
   wsClearContextRequestValidator,
-  wsCancelOutputRequestValidator
+  wsCancelOutputRequestValidator,
+  wsTtsTestRequestValidator
 ])
 
 export const wsQueryValidator = t.Object({

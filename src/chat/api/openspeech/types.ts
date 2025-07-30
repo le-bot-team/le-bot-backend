@@ -1,18 +1,32 @@
+export enum ProtocolVersionType {
+  v1 = 0b0001,
+  v2 = 0b0010,
+  v3 = 0b0011,
+  v4 = 0b0100,
+}
+
+export enum HeaderSizeType {
+  byte4 = 0b0001,
+  byte8 = 0b0010,
+  byte12 = 0b0011,
+  byte16 = 0b0100,
+}
+
 export enum MessageType {
   fullClientRequest = 0b0001,
   audioOnlyRequest = 0b0010,
   fullServerResponse = 0b1001,
+  audioOnlyServer = 0b1011,
+  frontEndResultServer = 0b1100,
   errorResponse = 0b1111,
-  // TTS specific message types
-  ttsRequest = 0b0100,
-  ttsResponse = 0b1100,
 }
 
-export enum SequenceNumberType {
-  none = 0b0000,
-  positive = 0b0001,
-  negative = 0b0010,
-  negativeWithSequence = 0b0011,
+export enum MessageFlagType {
+  noSequence = 0b0000,
+  positiveSequence = 0b0001,
+  lastNoSequence = 0b0010,
+  negativeSequence = 0b0011,
+  withEvent = 0b0100,
 }
 
 export enum SerializationType {
@@ -35,8 +49,29 @@ export enum ErrorType {
   busy = 55000031,
 }
 
+export enum TtsEventType {
+  none = 0,
+  startConnection = 1,
+  connectionStarted = 50,
+  connectionFinished = 52,
+  startSession = 100,
+  finishSession = 102,
+  sessionStarted = 150,
+  sessionFinished = 152,
+  taskRequest = 200,
+  ttsSentenceStart = 350,
+  ttsSentenceEnd = 351,
+  ttsResponse = 352,
+}
+
+export enum ResponseType {
+  asrResponse = 'asrResponse',
+  ttsResponse = 'ttsResponse',
+  errorResponse = 'errorResponse',
+}
+
 // https://www.volcengine.com/docs/6561/1354869#%E8%AF%B7%E6%B1%82%E6%B5%81%E7%A8%8B
-export interface FullClientRequest {
+export interface AsrRequest {
   user?: {
     uid?: string
     did?: string
@@ -72,28 +107,6 @@ export interface FullClientRequest {
   }
 }
 
-export type FullServerResponse = {
-  messageType: MessageType.fullServerResponse
-  sequenceNumberType: SequenceNumberType
-  sequenceNumber: number
-} & (
-  | {
-      serializationType: SerializationType.json
-      payload: object
-    }
-  | {
-      serializationType: SerializationType.none
-      payload: Uint8Array
-    }
-)
-
-export interface ErrorResponse {
-  messageType: MessageType.errorResponse
-  errorType: ErrorType
-  errorMessage: string
-}
-
-// TTS related types
 export interface TtsRequest {
   user?: {
     uid?: string
@@ -102,39 +115,62 @@ export interface TtsRequest {
     sdk_version?: string
     app_version?: string
   }
-  audio: {
-    format: 'pcm' | 'wav' | 'mp3'
-    codec?: 'raw' | 'opus'
-    rate?: 16000 | 24000 | 44100
-    bits?: 16 | 24
-    channel?: 1 | 2
-  }
-  request: {
-    text: string
-    model_name?: string
-    voice_type?: string
-    speed?: number // 语速，范围 0.5-2.0
-    volume?: number // 音量，范围 0.1-3.0
-    pitch?: number // 音调，范围 0.5-2.0
-    emotion?: string // 情感
-    language?: string // 语言
+  event: TtsEventType
+  req_params: {
+    text?: string
+    speaker: string
+    audio_params: {
+      format: 'mp3' | 'ogg_opus' | 'pcm' // Default: 'mp3'
+      sample_rate: 8000 | 16000 | 22050 | 24000 | 32000 | 41000 | 48000 // Default: 24000
+    }
+    additions?: string // JSON string, e.g., '{"disable_markdown_filter": true, "enable_latex_tn": true}'
   }
 }
 
-export type TtsServerResponse = {
-  messageType: MessageType.ttsResponse
-  sequenceNumberType: SequenceNumberType
+export type AsrResponse = {
+  responseType: ResponseType.asrResponse
+  messageFlag: Omit<MessageFlagType, MessageFlagType.withEvent>
   sequenceNumber: number
 } & (
   | {
       serializationType: SerializationType.json
-      payload: {
-        audio?: string // base64 encoded audio data
-        finished?: boolean
-      }
+      data: object
     }
   | {
       serializationType: SerializationType.none
-      payload: Uint8Array // raw audio data
+      data: Uint8Array
     }
 )
+
+export type TtsResponse = {
+  responseType: ResponseType.ttsResponse
+  messageFlag: MessageFlagType.withEvent
+} & (
+  | {
+      serializationType: SerializationType.json
+      data: object
+    }
+  | {
+      serializationType: SerializationType.none
+      data: Uint8Array
+    }
+) &
+  (
+    | {
+        eventType:
+          | TtsEventType.connectionStarted
+          | TtsEventType.sessionStarted
+          | TtsEventType.ttsResponse
+        id: string
+      }
+    | {
+        eventType: TtsEventType.sessionFinished | TtsEventType.ttsSentenceStart | TtsEventType.ttsSentenceEnd
+      }
+  )
+
+export interface ErrorResponse {
+  responseType: ResponseType.errorResponse
+  messageFlag: MessageFlagType.noSequence
+  errorType: ErrorType
+  errorMessage: string
+}
