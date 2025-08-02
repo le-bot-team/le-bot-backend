@@ -27,7 +27,7 @@ export const wsInputAudioStreamRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('inputAudioStream'),
   data: t.Object({
-    buffer: t.String(), // Base64 encoded audio data
+    buffer: t.String(),
   }),
 })
 
@@ -35,7 +35,7 @@ export const wsInputAudioCompleteRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('inputAudioComplete'),
   data: t.Object({
-    buffer: t.String(), // Base64 encoded audio data (最后一个音频片段)
+    buffer: t.String(),
   }),
 })
 
@@ -49,21 +49,12 @@ export const wsCancelOutputRequestValidator = t.Object({
   action: t.Literal('cancelOutput'),
 })
 
-export const wsTtsTestRequestValidator = t.Object({
-  id: t.String(),
-  action: t.Literal('ttsTest'),
-  data: t.Object({
-    text: t.String(),
-  }),
-})
-
 export const wsRequestValidator = t.Union([
   wsUpdateConfigRequestValidator,
   wsInputAudioStreamRequestValidator,
   wsInputAudioCompleteRequestValidator,
   wsClearContextRequestValidator,
-  wsCancelOutputRequestValidator,
-  wsTtsTestRequestValidator
+  wsCancelOutputRequestValidator
 ])
 
 export const wsQueryValidator = t.Object({

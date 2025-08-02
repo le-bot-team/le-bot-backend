@@ -31,7 +31,7 @@ export class AsrApi {
 
   sendAudioBase64(audioDataBase64: string, isLast = false): boolean {
     if (!this._ws || !this._isReady) {
-      log.warn('AsrApi is not ready to send audio data')
+      log.warn('[AsrApi] Not ready to send audio data')
       return false
     }
     const audioData = Uint8Array.fromBase64(audioDataBase64)
@@ -72,7 +72,7 @@ export class AsrApi {
     }
 
     if (this._ws && this._isReady) {
-      log.warn('WebSocket is already connected')
+      log.warn('[AsrApi] WebSocket is already connected')
       return true
     }
 
@@ -89,7 +89,7 @@ export class AsrApi {
         },
       )
       this._ws.onclose = (event) => {
-        log.info(event, 'Asr webSocket closed')
+        log.info(event, '[AsrApi] WebSocket closed')
         this._isReady = false
         this._sequenceNumber = 1
         if (this._ws) {
@@ -112,11 +112,11 @@ export class AsrApi {
           ),
         )
         this._sequenceNumber++
-        log.info('ASR WebSocket connection established')
+        log.info('[AsrApi] WebSocket opened successfully')
       }
 
       if (!this._ws) {
-        log.error('WebSocket is not initialized')
+        log.error('[AsrApi] WebSocket is not initialized')
         this._connectionPromise = null
         resolve(false)
         return
@@ -131,7 +131,7 @@ export class AsrApi {
                 errorType: message.errorType,
                 errorMessage: JSON.parse(message.errorMessage),
               },
-              'Error response: ',
+              '[AsrApi] Error response',
             )
             this._isReady = false
             this._connectionPromise = null
@@ -141,7 +141,7 @@ export class AsrApi {
           if (message.responseType === ResponseType.ttsResponse) {
             log.warn(
               { responseType: message.responseType },
-              'Received TTS response instead of ASR',
+              '[AsrApi] Received TTS response instead of ASR',
             )
             this._isReady = false
             this._connectionPromise = null
@@ -150,7 +150,7 @@ export class AsrApi {
           }
 
           if (message.sequenceNumber === 1) {
-            log.info('ASR configuration updated successfully')
+            log.info('[AsrApi] Configuration updated successfully')
             this._isReady = true
             resolve(true)
           } else {
@@ -176,24 +176,24 @@ export class AsrApi {
                     (utterance) => utterance.words,
                   ),
                 },
-                'Text data received',
+                '[AsrApi] Text data received',
               )
               if (message.messageFlag === MessageFlagType.negativeSequence) {
-                log.debug(
-                  { sequenceNumber: message.sequenceNumber },
-                  'Received last message with sequence number',
+                log.info(
+                  { text: payload.result.text },
+                  '[AsrApi] Recognition finished',
                 )
                 this.onFinish?.(payload.result.text)
               }
             } else {
               log.info(
                 { length: message.data.byteLength },
-                'Binary data received',
+                '[AsrApi] Binary data received',
               )
             }
           }
         } catch (e) {
-          log.warn(e as Error, 'Failed to parse message')
+          log.warn(e as Error, '[AsrApi] Failed to parse message')
           this._isReady = false
           this._connectionPromise = null
           resolve(false)
@@ -232,7 +232,7 @@ export class TtsApi {
     if (this._ws && this._connectionId?.length && this._sessionId?.length) {
       log.warn(
         { sessionId: this._sessionId },
-        'TtsApi session is already started',
+        '[TtsApi] Session is already started',
       )
       return true
     }
@@ -275,7 +275,7 @@ export class TtsApi {
         !this._connectionId?.length ||
         !this._sessionId?.length
       ) {
-        log.warn('TtsApi session is already finished or not started')
+        log.warn('[TtsApi] Session is already finished or not started')
         resolve(true)
         return
       }
@@ -303,7 +303,7 @@ export class TtsApi {
 
   sendText(text: string): boolean {
     if (!this._ws || !this._connectionId?.length || !this._sessionId?.length) {
-      log.warn('TtsApi is not ready to send text')
+      log.warn('[TtsApi] Is not ready to send text')
       return false
     }
 
@@ -338,7 +338,7 @@ export class TtsApi {
     }
 
     if (this._ws && this._connectionId?.length) {
-      log.warn('WebSocket is already connected')
+      log.warn('[TtsApi] WebSocket is already connected')
       return true
     }
 
@@ -355,14 +355,14 @@ export class TtsApi {
         },
       )
       if (!this._ws) {
-        log.error('TTS WebSocket is not initialized')
+        log.error('[TtsApi] WebSocket is not initialized')
         this._connectionPromise = undefined
         resolve(false)
         return
       }
 
       this._ws.onclose = (event) => {
-        log.warn(event, 'TTS WebSocket closed')
+        log.warn(event, '[TtsApi] WebSocket closed')
         this._connectionPromise = undefined
         this._connectionId = undefined
         this._startSessionPromise = undefined
@@ -388,7 +388,7 @@ export class TtsApi {
             [{}],
           ),
         )
-        log.info('TTS WebSocket opened successfully')
+        log.info('[TtsApi] WebSocket opened successfully')
       }
       this._ws.onmessage = async (event) => {
         try {
@@ -400,7 +400,7 @@ export class TtsApi {
                 errorType: message.errorType,
                 errorMessage: JSON.parse(message.errorMessage),
               },
-              'TTS Error response: ',
+              '[TtsApi] Error response',
             )
             this.close()
             resolve(false)
@@ -409,7 +409,7 @@ export class TtsApi {
           if (message.responseType === ResponseType.asrResponse) {
             log.warn(
               { responseType: message.responseType },
-              'Received ASR response instead of TTS',
+              '[TtsApi] Received ASR response instead of TTS',
             )
             this.close()
             resolve(false)
@@ -418,35 +418,35 @@ export class TtsApi {
 
           switch (message.eventType) {
             case TtsEventType.connectionStarted: {
-              log.info({ connectionId: message.id }, 'TTS connection started')
+              log.info({ connectionId: message.id }, '[TtsApi] Connection started')
               this._connectionId = message.id
               resolve(true)
               break
             }
             case TtsEventType.sessionStarted: {
-              log.info({ sessionId: message.id }, 'TTS session started')
+              log.info({ sessionId: message.id }, '[TtsApi] Session started')
               this._onSessionStarted?.(message.id)
               break
             }
             case TtsEventType.sessionFinished: {
-              log.info({ sessionId: this._sessionId }, 'TTS session finished')
+              log.info({ sessionId: this._sessionId }, '[TtsApi] Session finished')
               this._onSessionFinished?.()
               this.onFinish?.()
               break
             }
             case TtsEventType.ttsSentenceStart: {
-              log.info({ sessionId: this._sessionId }, 'TTS sentence started')
+              log.info({ sessionId: this._sessionId }, '[TtsApi] Sentence started')
               break
             }
             case TtsEventType.ttsSentenceEnd: {
-              log.info({ sessionId: this._sessionId }, 'TTS sentence ended')
+              log.info({ sessionId: this._sessionId }, '[TtsApi] Sentence ended')
               break
             }
             case TtsEventType.ttsResponse: {
               if (!(message.data instanceof Uint8Array)) {
                 log.warn(
                   message,
-                  'Received TTS response with unsupported data type',
+                  '[TtsApi] Received ttsResponse with unsupported data type',
                 )
                 this.close()
                 resolve(false)
@@ -456,14 +456,14 @@ export class TtsApi {
               break
             }
             default: {
-              log.warn(message, 'Received unsupported TTS event type')
+              log.warn(message, '[TtsApi] Received unsupported TTS event type')
               this.close()
               resolve(false)
               return
             }
           }
         } catch (e) {
-          log.warn(e as Error, 'Failed to parse TTS message')
+          log.warn(e as Error, '[TtsApi] Failed to parse TTS message')
           this.close()
           resolve(false)
         }

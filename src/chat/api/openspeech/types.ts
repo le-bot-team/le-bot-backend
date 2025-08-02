@@ -110,18 +110,21 @@ export interface AsrRequest {
 export interface TtsRequest {
   user?: {
     uid?: string
-    did?: string
-    platform?: string
-    sdk_version?: string
-    app_version?: string
   }
   event: TtsEventType
+  namespace?: string // Default: 'BidirectionalTTS'
   req_params: {
     text?: string
     speaker: string
     audio_params: {
-      format: 'mp3' | 'ogg_opus' | 'pcm' // Default: 'mp3'
-      sample_rate: 8000 | 16000 | 22050 | 24000 | 32000 | 41000 | 48000 // Default: 24000
+      format?: 'mp3' | 'ogg_opus' | 'pcm' // Default: 'mp3'
+      sample_rate?: 8000 | 16000 | 22050 | 24000 | 32000 | 41000 | 48000 // Default: 24000
+      bit_rate?: number // Default: 64000 ~ 160000
+      emotion?: string;
+      emotion_scale?: number // Default: 4
+      speech_rate?: number // Default: 0
+      loudness_rate?: number // Default: 0
+      enable_timestamp?: boolean // Default: false
     }
     additions?: string // JSON string, e.g., '{"disable_markdown_filter": true, "enable_latex_tn": true}'
   }

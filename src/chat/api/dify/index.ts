@@ -1,6 +1,7 @@
 import { log } from '@log'
 
-import { DifyStreamMessage } from './types'
+import { STREAM_DATA_PREFIX } from './constants'
+import { DifyEvent } from './types'
 
 export class DifyApi {
   onMessage: ((segment: string) => void) | undefined
@@ -37,44 +38,67 @@ export class DifyApi {
       )
     }
 
+    log.info({ status: response.status }, '[DifyApi] Streaming answer started')
+
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
     let fullAnswer = ''
+    let finished = false
 
     try {
-      while (true) {
+      while (!finished) {
         const { done, value } = await reader.read()
         if (done) {
           break
         }
+
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
 
         for (const line of lines) {
           const trimmedLine = line.trim()
-          if (!trimmedLine || !trimmedLine.startsWith('data: ')) {
+          if (!trimmedLine || !trimmedLine.startsWith(STREAM_DATA_PREFIX)) {
             continue
           }
           try {
-            const jsonStr = trimmedLine.substring(6)
-            const data: DifyStreamMessage = JSON.parse(jsonStr)
-            if (data.event === 'message' && data.answer) {
-              fullAnswer += data.answer
-              this.onMessage?.(data.answer)
+            const difyEvent: DifyEvent = JSON.parse(
+              trimmedLine.substring(STREAM_DATA_PREFIX.length),
+            )
+            if (
+              difyEvent.event === 'node_finished' &&
+              difyEvent.data.title === 'casual_conversation'
+            ) {
+              finished = true
+              break
+            }
+
+            if (difyEvent.event === 'message') {
+              fullAnswer += difyEvent.answer
+              this.onMessage?.(difyEvent.answer)
+              log.debug(`[DifyApi] Received message chunk: ${difyEvent.answer}`)
             }
           } catch (parseError) {
             log.warn(
-              `Failed to parse streaming data: ${trimmedLine}`,
+              `[DifyApi] Failed to parse streaming data: ${trimmedLine}`,
               parseError,
             )
           }
+        }
+
+        if (finished) {
+          log.info(
+            `[DifyApi] Finished streaming answer for conversation ${conversationId}`,
+          )
+          break
         }
       }
     } finally {
       reader.releaseLock()
     }
+
+    log.info({ fullAnswer }, '[DifyApi] Streaming answer finished')
 
     return fullAnswer
   }

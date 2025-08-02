@@ -281,6 +281,9 @@ export const createAsrRequestData = (
       enable_punc: true,
       enable_ddc: true,
       show_utterances: true,
+      // vad_segment_duration: 1500,
+      end_window_size: 200,
+      force_to_speech_time: 1000
     },
   }
 }
@@ -296,6 +299,7 @@ export const createTtsRequestData = (
       uid: userId.toString(),
     },
     event: event,
+    namespace: 'BidirectionalTTS',
     req_params: {
       text,
       speaker: voiceType,

@@ -34,11 +34,11 @@ export class ApiWrapper {
     this._ttsApi = new TtsApi(this._wsClient.id, this._userId)
 
     this._asrApi.onFinish = async (recognized) => {
-      await this._ttsApi.startSession()
       const fullAnswer = await this._difyApi.chatMessage(
         this._conversationId,
         recognized,
       )
+      this._ttsApi.sendText(fullAnswer)
       await this._ttsApi.finishSession()
       if (this._outputText) {
         this._wsClient.send(
@@ -52,7 +52,6 @@ export class ApiWrapper {
       }
     }
     this._difyApi.onMessage = (segment) => {
-      this._ttsApi.sendText(segment)
       if (this._outputText) {
         this._wsClient.send(
           new WsOutputTextStreamResponseSuccess(
@@ -97,6 +96,7 @@ export class ApiWrapper {
       this._asrApi.connect(),
       this._ttsApi.connect(),
     ])
+    await this._ttsApi.startSession()
     this._wsClient.send(
       JSON.stringify(
         new WsUpdateConfigResponseSuccess(
@@ -114,15 +114,5 @@ export class ApiWrapper {
 
   inputAudioComplete(buffer: string): boolean {
     return this._asrApi.sendAudioBase64(buffer, true)
-  }
-
-  async testTts(text: string): Promise<boolean> {
-    await this._ttsApi.connect();
-    await this._ttsApi.startSession()
-    for (const segment of text.split('')) {
-      this._ttsApi.sendText(segment)
-    }
-    await this._ttsApi.finishSession()
-    return true
   }
 }

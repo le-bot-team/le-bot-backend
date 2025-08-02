@@ -58,26 +58,14 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
           break
         }
         case 'inputAudioComplete': {
-          log.debug({ messageId: message.id }, 'WsAction inputAudioComplete')
+          log.info({ messageId: message.id }, '[WsAction] Input audio complete')
           apiWrapper.inputAudioComplete(message.data.buffer)
           break
         }
         case 'clearContext': {
-          log.debug({ messageId: message.id }, 'clearContext')
           break
         }
         case 'cancelOutput': {
-          log.debug({ messageId: message.id }, 'cancelOutput')
-          break
-        }
-        case 'ttsTest': {
-          log.debug({ messageId: message.id }, 'ttsTest')
-          const result = await apiWrapper.testTts(message.data.text)
-          ws.send({
-            id: message.id,
-            action: 'ttsTest',
-            success: result,
-          })
           break
         }
         default: {
