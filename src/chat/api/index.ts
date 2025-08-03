@@ -19,6 +19,7 @@ export class ApiWrapper {
   private readonly _ttsApi: TtsApi
 
   private _conversationId = ''
+  private _isFirstAudio = true
   private _outputText = false
 
   constructor(
@@ -92,11 +93,6 @@ export class ApiWrapper {
   async updateConfig(request: WsUpdateConfigRequest): Promise<boolean> {
     this._conversationId = request.data.conversationId ?? randomUUIDv7()
     this._outputText = request.data.outputText ?? false
-    const result = await Promise.all([
-      this._asrApi.connect(),
-      this._ttsApi.connect(),
-    ])
-    await this._ttsApi.startSession()
     this._wsClient.send(
       JSON.stringify(
         new WsUpdateConfigResponseSuccess(
@@ -105,10 +101,25 @@ export class ApiWrapper {
         ),
       ),
     )
-    return result.every((res) => res)
+    return true
   }
 
-  inputAudioStream(buffer: string): boolean {
+  async inputAudioStream(buffer: string): Promise<boolean> {
+    if (this._isFirstAudio) {
+      if (
+        !(
+          await Promise.all([this._asrApi.connect(), this._ttsApi.connect()])
+        ).every((result) => result)
+      ) {
+        this._wsClient.close(1008, 'API connection failed')
+        return false
+      }
+      if (!(await this._ttsApi.startSession())) {
+        this._wsClient.close(1008, 'TTS session start failed')
+        return false
+      }
+      this._isFirstAudio = false
+    }
     return this._asrApi.sendAudioBase64(buffer, false)
   }
 

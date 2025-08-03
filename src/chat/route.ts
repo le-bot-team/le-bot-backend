@@ -54,7 +54,7 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
           break
         }
         case 'inputAudioStream': {
-          apiWrapper.inputAudioStream(message.data.buffer)
+          await apiWrapper.inputAudioStream(message.data.buffer)
           break
         }
         case 'inputAudioComplete': {
