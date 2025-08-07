@@ -1,4 +1,5 @@
 import { swagger } from '@elysiajs/swagger'
+import { staticPlugin } from '@elysiajs/static'
 import { Elysia } from 'elysia'
 
 import { authRoute } from '@auth/route'
@@ -8,6 +9,7 @@ import { log } from '@log'
 const app = new Elysia()
   .use(log.into())
   .use(swagger())
+  .use(staticPlugin())
   .onError((ctx) => {
     ctx.log?.error(ctx, ctx.error.toString())
     return 'onError'
