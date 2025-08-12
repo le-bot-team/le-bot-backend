@@ -258,6 +258,7 @@ export class TtsApi {
         this._sessionId = sessionId
         resolve(true)
         this._onSessionStarted = undefined
+        this._finishSessionPromise = undefined
       }
     })
 
@@ -294,6 +295,7 @@ export class TtsApi {
         this._sessionId = undefined
         resolve(true)
         this._onSessionFinished = undefined
+        this._startSessionPromise = undefined
       }
       return true
     })
@@ -303,7 +305,14 @@ export class TtsApi {
 
   sendText(text: string): boolean {
     if (!this._ws || !this._connectionId?.length || !this._sessionId?.length) {
-      log.warn('[TtsApi] Is not ready to send text')
+      log.warn(
+        {
+          ws: this._ws,
+          connectionId: this._connectionId,
+          sessionId: this._sessionId,
+        },
+        '[TtsApi] Is not ready to send text',
+      )
       return false
     }
 
@@ -418,7 +427,10 @@ export class TtsApi {
 
           switch (message.eventType) {
             case TtsEventType.connectionStarted: {
-              log.info({ connectionId: message.id }, '[TtsApi] Connection started')
+              log.info(
+                { connectionId: message.id },
+                '[TtsApi] Connection started',
+              )
               this._connectionId = message.id
               resolve(true)
               break
@@ -429,17 +441,26 @@ export class TtsApi {
               break
             }
             case TtsEventType.sessionFinished: {
-              log.info({ sessionId: this._sessionId }, '[TtsApi] Session finished')
+              log.info(
+                { sessionId: this._sessionId },
+                '[TtsApi] Session finished',
+              )
               this._onSessionFinished?.()
               this.onFinish?.()
               break
             }
             case TtsEventType.ttsSentenceStart: {
-              log.info({ sessionId: this._sessionId }, '[TtsApi] Sentence started')
+              log.info(
+                { sessionId: this._sessionId },
+                '[TtsApi] Sentence started',
+              )
               break
             }
             case TtsEventType.ttsSentenceEnd: {
-              log.info({ sessionId: this._sessionId }, '[TtsApi] Sentence ended')
+              log.info(
+                { sessionId: this._sessionId },
+                '[TtsApi] Sentence ended',
+              )
               break
             }
             case TtsEventType.ttsResponse: {
