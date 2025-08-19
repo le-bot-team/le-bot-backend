@@ -215,26 +215,35 @@ export class ApiWrapper {
     try {
       log.info('[WsAction] Establishing API connections')
 
-      if (
-        !(
-          await Promise.all([
-            this._asrApi.connect(),
-            async () =>
-              [
-                await this._ttsApi.connect(),
-                await this._ttsApi.startSession(),
-              ].every((result) => result),
-          ])
-        ).every((result) => result)
-      ) {
-        log.error('[WsAction] Failed to connect to one or more APIs')
+      // 先连接 ASR 和 TTS
+      const [asrConnected, ttsConnected] = await Promise.all([
+        this._asrApi.connect(),
+        this._ttsApi.connect(),
+      ])
+
+      if (!asrConnected) {
+        log.error('[WsAction] Failed to connect to ASR API')
+        this._isConnected = false
+        return
+      }
+
+      if (!ttsConnected) {
+        log.error('[WsAction] Failed to connect to TTS API')
+        this._isConnected = false
+        return
+      }
+
+      // TTS 连接成功后，启动会话
+      const sessionStarted = await this._ttsApi.startSession()
+      if (!sessionStarted) {
+        log.error('[WsAction] Failed to start TTS session')
         this._isConnected = false
         return
       }
 
       this._isConnected = true
       this._isFirstAudio = false
-      log.info('[WsAction] API connections established successfully')
+      log.info('[WsAction] API connections and TTS session established successfully')
     } catch (error) {
       log.error(error, '[WsAction] Failed to establish API connections')
       this._isConnected = false
