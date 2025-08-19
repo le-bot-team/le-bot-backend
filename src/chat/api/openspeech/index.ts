@@ -16,7 +16,7 @@ import {
 } from './utils'
 
 export class AsrApi {
-  private _connectionPromise: Promise<boolean> | null = null
+  private _connectionPromise?: Promise<boolean>
   private _isReady = false
   private _sequenceNumber = 1
   private _ws: WebSocket | undefined
@@ -66,6 +66,15 @@ export class AsrApi {
     this._sequenceNumber = 1
   }
 
+  // 添加公共方法检查连接状态
+  get isConnected(): boolean {
+    return !!(this._ws && this._isReady)
+  }
+
+  get isConnecting(): boolean {
+    return !!this._connectionPromise
+  }
+
   async connect(): Promise<boolean> {
     if (this._connectionPromise) {
       return this._connectionPromise
@@ -97,7 +106,7 @@ export class AsrApi {
           this._ws.onclose = null
           this._ws = undefined
         }
-        this._connectionPromise = null
+        this._connectionPromise = undefined
         resolve(false)
       }
       this._ws.onopen = () => {
@@ -117,7 +126,7 @@ export class AsrApi {
 
       if (!this._ws) {
         log.error('[AsrApi] WebSocket is not initialized')
-        this._connectionPromise = null
+        this._connectionPromise = undefined
         resolve(false)
         return
       }
@@ -134,7 +143,7 @@ export class AsrApi {
               '[AsrApi] Error response',
             )
             this._isReady = false
-            this._connectionPromise = null
+            this._connectionPromise = undefined
             resolve(false)
             return
           }
@@ -144,7 +153,7 @@ export class AsrApi {
               '[AsrApi] Received TTS response instead of ASR',
             )
             this._isReady = false
-            this._connectionPromise = null
+            this._connectionPromise = undefined
             resolve(false)
             return
           }
@@ -152,6 +161,7 @@ export class AsrApi {
           if (message.sequenceNumber === 1) {
             log.info('[AsrApi] Configuration updated successfully')
             this._isReady = true
+            this._connectionPromise = undefined // 清理连接Promise
             resolve(true)
           } else {
             if (message.serializationType === SerializationType.json) {
@@ -195,7 +205,7 @@ export class AsrApi {
         } catch (e) {
           log.warn(e as Error, '[AsrApi] Failed to parse message')
           this._isReady = false
-          this._connectionPromise = null
+          this._connectionPromise = undefined
           resolve(false)
         }
       }
@@ -341,6 +351,15 @@ export class TtsApi {
     this._ws?.close()
   }
 
+  // 添加公共方法检查连接状态
+  get isConnected(): boolean {
+    return !!(this._ws && this._connectionId?.length && this._sessionId?.length)
+  }
+
+  get isConnecting(): boolean {
+    return !!this._connectionPromise
+  }
+
   async connect(): Promise<boolean> {
     if (this._connectionPromise) {
       return this._connectionPromise
@@ -432,6 +451,7 @@ export class TtsApi {
                 '[TtsApi] Connection started',
               )
               this._connectionId = message.id
+              this._connectionPromise = undefined // 清理连接Promise
               resolve(true)
               break
             }

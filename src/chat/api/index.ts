@@ -24,8 +24,6 @@ export class ApiWrapper {
   private _isFirstAudio = true
   private _isReady = true
   private _outputText = false
-  private _isConnecting = false
-  private _isConnected = false
   private _audioQueue: { buffer: string; isComplete: boolean }[] = []
   private _processingQueue = false
 
@@ -103,6 +101,7 @@ export class ApiWrapper {
       )
       this._isReady = true
       this._isFirstAudio = true
+      // 不再需要手动重置连接状态，因为TTS会话结束后状态会自动重置
     }
   }
 
@@ -111,8 +110,6 @@ export class ApiWrapper {
     this._ttsApi.close()
     this._audioQueue = []
     this._processingQueue = false
-    this._isConnecting = false
-    this._isConnected = false
   }
 
   async updateConfig(request: WsUpdateConfigRequest): Promise<boolean> {
@@ -170,47 +167,72 @@ export class ApiWrapper {
     this._processingQueue = true
 
     try {
+      log.info(`[WsAction] Processing audio queue with ${this._audioQueue.length} items`)
+
       while (this._audioQueue.length > 0) {
         const audioData = this._audioQueue.shift()
         if (!audioData) {
           continue
         }
 
-        // 如果是第一个音频包且未连接，先建立连接
-        if (this._isFirstAudio && !this._isConnected && !this._isConnecting) {
+        log.info(`[WsAction] Processing audio data, isComplete: ${audioData.isComplete}, buffer length: ${audioData.buffer.length}`)
+
+        // 检查是否需要建立连接
+        const needConnection = this._isFirstAudio && !this._isConnectionReady()
+        if (needConnection && !this._isConnecting()) {
+          log.info('[WsAction] Need to establish connections')
           await this._establishConnections()
         }
 
         // 等待连接完成
-        while (this._isConnecting) {
+        while (this._isConnecting()) {
+          log.info('[WsAction] Waiting for connections to complete...')
           await new Promise((resolve) => setTimeout(resolve, 10))
         }
 
+        // 检查连接状态
+        const connectionReady = this._isConnectionReady()
+        log.info(`[WsAction] Connection ready status: ASR=${this._asrApi.isConnected}, TTS=${this._ttsApi.isConnected}, overall=${connectionReady}`)
+
         // 如果连接失败，清空队列并退出
-        if (!this._isConnected) {
+        if (!connectionReady) {
+          log.error('[WsAction] Connection failed, closing WebSocket')
           this._audioQueue = []
           this._wsClient.close(1008, 'API connection failed')
           break
         }
 
         // 发送音频数据
-        if (audioData.isComplete) {
-          this._asrApi.sendAudioBase64(audioData.buffer, true)
-        } else {
-          this._asrApi.sendAudioBase64(audioData.buffer, false)
+        log.info(`[WsAction] Sending audio data to ASR API, isLast: ${audioData.isComplete}`)
+        const sendResult = audioData.isComplete
+          ? this._asrApi.sendAudioBase64(audioData.buffer, true)
+          : this._asrApi.sendAudioBase64(audioData.buffer, false)
+        log.info(`[WsAction] ASR send result: ${sendResult}`)
+
+        if (!sendResult) {
+          log.error('[WsAction] Failed to send audio data to ASR API')
         }
       }
+    } catch (error) {
+      log.error(error, '[WsAction] Error in _processAudioQueue')
     } finally {
       this._processingQueue = false
+      log.info('[WsAction] Finished processing audio queue')
     }
   }
 
+  private _isConnectionReady(): boolean {
+    return this._asrApi.isConnected && this._ttsApi.isConnected
+  }
+
+  private _isConnecting(): boolean {
+    return this._asrApi.isConnecting || this._ttsApi.isConnecting
+  }
+
   private async _establishConnections(): Promise<void> {
-    if (this._isConnecting || this._isConnected) {
+    if (this._isConnecting() || this._isConnectionReady()) {
       return
     }
-
-    this._isConnecting = true
 
     try {
       log.info('[WsAction] Establishing API connections')
@@ -223,13 +245,11 @@ export class ApiWrapper {
 
       if (!asrConnected) {
         log.error('[WsAction] Failed to connect to ASR API')
-        this._isConnected = false
         return
       }
 
       if (!ttsConnected) {
         log.error('[WsAction] Failed to connect to TTS API')
-        this._isConnected = false
         return
       }
 
@@ -237,18 +257,13 @@ export class ApiWrapper {
       const sessionStarted = await this._ttsApi.startSession()
       if (!sessionStarted) {
         log.error('[WsAction] Failed to start TTS session')
-        this._isConnected = false
         return
       }
 
-      this._isConnected = true
       this._isFirstAudio = false
       log.info('[WsAction] API connections and TTS session established successfully')
     } catch (error) {
       log.error(error, '[WsAction] Failed to establish API connections')
-      this._isConnected = false
-    } finally {
-      this._isConnecting = false
     }
   }
 }
