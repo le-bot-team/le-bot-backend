@@ -4,6 +4,7 @@ import { STREAM_DATA_PREFIX } from './constants'
 import { DifyEvent } from './types'
 
 export class DifyApi {
+  onConversationId: ((conversationId: string) => void) | undefined
   onMessage: ((segment: string) => void) | undefined
 
   constructor(
@@ -43,6 +44,7 @@ export class DifyApi {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    let conversationIdReturned = false
     let fullAnswer = ''
     let finished = false
 
@@ -66,6 +68,14 @@ export class DifyApi {
             const difyEvent: DifyEvent = JSON.parse(
               trimmedLine.substring(STREAM_DATA_PREFIX.length),
             )
+            if (!conversationIdReturned && difyEvent.conversation_id.length) {
+              log.info(
+                `[DifyApi] Conversation ID received: ${difyEvent.conversation_id}`,
+              )
+              this.onConversationId?.(difyEvent.conversation_id)
+              conversationIdReturned = true
+            }
+
             if (
               difyEvent.event === 'node_finished' &&
               difyEvent.data.title === 'casual_conversation'

@@ -12,7 +12,7 @@ export interface DifyEventMessage extends DifyEventBase {
   from_variable_selector: string[]
 }
 
-export interface DifyEventNodeFinished {
+export interface DifyEventNodeFinished extends DifyEventBase {
   event: 'node_finished'
   workflow_run_id: string
   data: {

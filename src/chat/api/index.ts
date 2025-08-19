@@ -7,7 +7,7 @@ import {
   WsOutputTextCompleteResponseSuccess,
   WsOutputTextStreamResponseSuccess,
   WsUpdateConfigRequest,
-  WsUpdateConfigResponseSuccess
+  WsUpdateConfigResponseSuccess,
 } from 'src/chat/types/websocket'
 
 import { log } from '@log'
@@ -55,6 +55,9 @@ export class ApiWrapper {
           ),
         )
       }
+    }
+    this._difyApi.onConversationId = (conversationId) => {
+      this._conversationId = conversationId
     }
     this._difyApi.onMessage = (segment) => {
       if (this._outputText) {
@@ -112,11 +115,11 @@ export class ApiWrapper {
 
   async inputAudioStream(buffer: string): Promise<boolean> {
     if (!this._isReady) {
-      log.warn("[WsAction] Input audio stream ignored, not ready")
+      log.warn('[WsAction] Input audio stream ignored, not ready')
       return false
     }
     if (this._isFirstAudio) {
-      log.info("[WsAction] Input audio stream first audio")
+      log.info('[WsAction] Input audio stream first audio')
       if (
         !(
           await Promise.all([this._asrApi.connect(), this._ttsApi.connect()])
@@ -136,7 +139,7 @@ export class ApiWrapper {
 
   inputAudioComplete(buffer: string): boolean {
     if (!this._isReady) {
-      log.warn("[WsAction] Input audio complete ignored, not ready")
+      log.warn('[WsAction] Input audio complete ignored, not ready')
       return false
     }
     return this._asrApi.sendAudioBase64(buffer, true)
