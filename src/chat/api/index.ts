@@ -24,6 +24,10 @@ export class ApiWrapper {
   private _isFirstAudio = true
   private _isReady = true
   private _outputText = false
+  private _isConnecting = false
+  private _isConnected = false
+  private _audioQueue: { buffer: string; isComplete: boolean }[] = []
+  private _processingQueue = false
 
   constructor(
     private readonly _wsClient: ElysiaWS,
@@ -58,6 +62,14 @@ export class ApiWrapper {
     }
     this._difyApi.onConversationId = (conversationId) => {
       this._conversationId = conversationId
+      this._wsClient.send(
+        JSON.stringify(
+          new WsUpdateConfigResponseSuccess(
+            randomUUIDv7(),
+            conversationId,
+          ),
+        ),
+      )
     }
     this._difyApi.onMessage = (segment) => {
       if (this._outputText) {
@@ -97,16 +109,20 @@ export class ApiWrapper {
   destroy() {
     this._asrApi.close()
     this._ttsApi.close()
+    this._audioQueue = []
+    this._processingQueue = false
+    this._isConnecting = false
+    this._isConnected = false
   }
 
   async updateConfig(request: WsUpdateConfigRequest): Promise<boolean> {
-    this._conversationId = request.data.conversationId ?? randomUUIDv7()
+    this._conversationId = request.data.conversationId ?? ''
     this._outputText = request.data.outputText ?? false
     this._wsClient.send(
       JSON.stringify(
         new WsUpdateConfigResponseSuccess(
           request.id,
-          request.data.conversationId ?? randomUUIDv7(),
+          this._conversationId,
         ),
       ),
     )
@@ -118,23 +134,14 @@ export class ApiWrapper {
       log.warn('[WsAction] Input audio stream ignored, not ready')
       return false
     }
-    if (this._isFirstAudio) {
-      log.info('[WsAction] Input audio stream first audio')
-      if (
-        !(
-          await Promise.all([this._asrApi.connect(), this._ttsApi.connect()])
-        ).every((result) => result)
-      ) {
-        this._wsClient.close(1008, 'API connection failed')
-        return false
-      }
-      if (!(await this._ttsApi.startSession())) {
-        this._wsClient.close(1008, 'TTS session start failed')
-        return false
-      }
-      this._isFirstAudio = false
-    }
-    return this._asrApi.sendAudioBase64(buffer, false)
+
+    // 将音频数据加入队列
+    this._audioQueue.push({ buffer, isComplete: false })
+
+    // 开始处理队列
+    await this._processAudioQueue()
+
+    return true
   }
 
   inputAudioComplete(buffer: string): boolean {
@@ -142,6 +149,97 @@ export class ApiWrapper {
       log.warn('[WsAction] Input audio complete ignored, not ready')
       return false
     }
-    return this._asrApi.sendAudioBase64(buffer, true)
+
+    // 将完成音频数据加入队列
+    this._audioQueue.push({ buffer, isComplete: true })
+
+    // 异步处理队列，不阻塞当前调用
+    this._processAudioQueue().catch((error) => {
+      log.error(error, '[WsAction] Failed to process audio queue')
+    })
+
+    return true
+  }
+
+  private async _processAudioQueue(): Promise<void> {
+    // 如果已经在处理队列，直接返回
+    if (this._processingQueue) {
+      return
+    }
+
+    this._processingQueue = true
+
+    try {
+      while (this._audioQueue.length > 0) {
+        const audioData = this._audioQueue.shift()
+        if (!audioData) {
+          continue
+        }
+
+        // 如果是第一个音频包且未连接，先建立连接
+        if (this._isFirstAudio && !this._isConnected && !this._isConnecting) {
+          await this._establishConnections()
+        }
+
+        // 等待连接完成
+        while (this._isConnecting) {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+        }
+
+        // 如果连接失败，清空队列并退出
+        if (!this._isConnected) {
+          this._audioQueue = []
+          this._wsClient.close(1008, 'API connection failed')
+          break
+        }
+
+        // 发送音频数据
+        if (audioData.isComplete) {
+          this._asrApi.sendAudioBase64(audioData.buffer, true)
+        } else {
+          this._asrApi.sendAudioBase64(audioData.buffer, false)
+        }
+      }
+    } finally {
+      this._processingQueue = false
+    }
+  }
+
+  private async _establishConnections(): Promise<void> {
+    if (this._isConnecting || this._isConnected) {
+      return
+    }
+
+    this._isConnecting = true
+
+    try {
+      log.info('[WsAction] Establishing API connections')
+
+      if (
+        !(
+          await Promise.all([
+            this._asrApi.connect(),
+            async () =>
+              [
+                await this._ttsApi.connect(),
+                await this._ttsApi.startSession(),
+              ].every((result) => result),
+          ])
+        ).every((result) => result)
+      ) {
+        log.error('[WsAction] Failed to connect to one or more APIs')
+        this._isConnected = false
+        return
+      }
+
+      this._isConnected = true
+      this._isFirstAudio = false
+      log.info('[WsAction] API connections established successfully')
+    } catch (error) {
+      log.error(error, '[WsAction] Failed to establish API connections')
+      this._isConnected = false
+    } finally {
+      this._isConnecting = false
+    }
   }
 }
