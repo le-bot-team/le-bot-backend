@@ -66,6 +66,7 @@ export class WsOutputTextStreamResponseSuccess extends WsBaseResponseSuccess {
     messageId: string,
     private readonly chatId: string,
     private readonly conversationId: string,
+    private readonly role: 'assistant' | 'user',
     private readonly text: string,
   ) {
     super(messageId, 'outputTextStream')
@@ -76,7 +77,7 @@ export class WsOutputTextStreamResponseSuccess extends WsBaseResponseSuccess {
       data: {
         chatId: this.chatId,
         conversationId: this.conversationId,
-        role: 'assistant',
+        role: this.role,
         text: this.text,
       },
     }
@@ -88,6 +89,7 @@ export class WsOutputTextCompleteResponseSuccess extends WsBaseResponseSuccess {
     messageId: string,
     private readonly chatId: string,
     private readonly conversationId: string,
+    private readonly role: 'assistant' | 'user',
     private readonly text: string,
   ) {
     super(messageId, 'outputTextComplete')
@@ -98,7 +100,7 @@ export class WsOutputTextCompleteResponseSuccess extends WsBaseResponseSuccess {
       data: {
         chatId: this.chatId,
         conversationId: this.conversationId,
-        role: 'assistant',
+        role: this.role,
         text: this.text,
       },
     }

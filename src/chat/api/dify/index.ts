@@ -5,7 +5,7 @@ import { DifyEvent } from './types'
 
 export class DifyApi {
   onConversationId: ((conversationId: string) => void) | undefined
-  onMessage: ((segment: string) => void) | undefined
+  onUpdate: ((text: string) => void) | undefined
 
   constructor(
     private readonly _baseUrl: string,
@@ -86,8 +86,7 @@ export class DifyApi {
 
             if (difyEvent.event === 'message') {
               fullAnswer += difyEvent.answer
-              this.onMessage?.(difyEvent.answer)
-              log.debug(`[DifyApi] Received message chunk: ${difyEvent.answer}`)
+              this.onUpdate?.(fullAnswer)
             }
           } catch (parseError) {
             log.warn(

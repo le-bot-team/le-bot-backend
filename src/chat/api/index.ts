@@ -1,7 +1,7 @@
-import { randomUUIDv7 } from 'bun'
 import { ElysiaWS } from 'elysia/ws'
 
 import {
+  WsChatCompleteResponseSuccess,
   WsOutputAudioCompleteResponseSuccess,
   WsOutputAudioStreamResponseSuccess,
   WsOutputTextCompleteResponseSuccess,
@@ -41,42 +41,71 @@ export class ApiWrapper {
 
     this._asrApi.onFinish = async (recognized) => {
       this._isReady = false
-      const fullAnswer = await this._difyApi.chatMessage(
-        this._conversationId,
-        recognized,
-      )
-      this._ttsApi.sendText(fullAnswer)
-      await this._ttsApi.finishSession()
       if (this._outputText) {
         this._wsClient.send(
           new WsOutputTextCompleteResponseSuccess(
             this._wsClient.id,
             this._wsClient.id,
             this._conversationId,
+            'user',
+            recognized,
+          ),
+        )
+      }
+
+      const fullAnswer = await this._difyApi.chatMessage(
+        this._conversationId,
+        recognized,
+      )
+      if (this._outputText) {
+        this._wsClient.send(
+          new WsOutputTextCompleteResponseSuccess(
+            this._wsClient.id,
+            this._wsClient.id,
+            this._conversationId,
+            'assistant',
             fullAnswer,
           ),
         )
       }
-    }
-    this._difyApi.onConversationId = (conversationId) => {
-      this._conversationId = conversationId
+
+      this._ttsApi.sendText(fullAnswer)
+      await this._ttsApi.finishSession()
       this._wsClient.send(
-        JSON.stringify(
-          new WsUpdateConfigResponseSuccess(
-            randomUUIDv7(),
-            conversationId,
-          ),
+        new WsChatCompleteResponseSuccess(
+          this._wsClient.id,
+          this._wsClient.id,
+          this._conversationId,
+          0,
+          0,
         ),
       )
     }
-    this._difyApi.onMessage = (segment) => {
+    this._asrApi.onUpdate = (text) => {
       if (this._outputText) {
         this._wsClient.send(
           new WsOutputTextStreamResponseSuccess(
             this._wsClient.id,
             this._wsClient.id,
             this._conversationId,
-            segment,
+            'user',
+            text,
+          ),
+        )
+      }
+    }
+    this._difyApi.onConversationId = (conversationId) => {
+      this._conversationId = conversationId
+    }
+    this._difyApi.onUpdate = (text) => {
+      if (this._outputText) {
+        this._wsClient.send(
+          new WsOutputTextStreamResponseSuccess(
+            this._wsClient.id,
+            this._wsClient.id,
+            this._conversationId,
+            'assistant',
+            text,
           ),
         )
       }
@@ -117,10 +146,7 @@ export class ApiWrapper {
     this._outputText = request.data.outputText ?? false
     this._wsClient.send(
       JSON.stringify(
-        new WsUpdateConfigResponseSuccess(
-          request.id,
-          this._conversationId,
-        ),
+        new WsUpdateConfigResponseSuccess(request.id, this._conversationId),
       ),
     )
     return true
@@ -173,7 +199,11 @@ export class ApiWrapper {
         }
 
         // 如果是第一个音频包且未连接，先建立连接
-        if (this._isFirstAudio && !this._isConnectionReady() && !this._isConnecting()) {
+        if (
+          this._isFirstAudio &&
+          !this._isConnectionReady() &&
+          !this._isConnecting()
+        ) {
           await this._establishConnections()
         }
 
@@ -246,7 +276,9 @@ export class ApiWrapper {
       }
 
       this._isFirstAudio = false
-      log.info('[WsAction] API connections and TTS session established successfully')
+      log.info(
+        '[WsAction] API connections and TTS session established successfully',
+      )
     } catch (error) {
       log.error(error, '[WsAction] Failed to establish API connections')
     }

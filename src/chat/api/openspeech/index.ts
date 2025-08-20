@@ -22,6 +22,7 @@ export class AsrApi {
   private _ws: WebSocket | undefined
 
   onFinish: ((recognized: string) => void) | undefined
+  onUpdate: ((text: string) => void) | undefined
 
   constructor(
     private readonly _connectId: string,
@@ -35,7 +36,9 @@ export class AsrApi {
     }
 
     const audioData = Uint8Array.fromBase64(audioDataBase64)
-    const messageFlag = isLast ? MessageFlagType.negativeSequence : MessageFlagType.positiveSequence
+    const messageFlag = isLast
+      ? MessageFlagType.negativeSequence
+      : MessageFlagType.positiveSequence
     const currentSeq = isLast ? -this._sequenceNumber : this._sequenceNumber
 
     if (!isLast) {
@@ -153,8 +156,13 @@ export class AsrApi {
             }
 
             if (message.messageFlag === MessageFlagType.negativeSequence) {
-              log.info({ text: payload.result.text }, '[AsrApi] Recognition finished')
+              log.info(
+                { text: payload.result.text },
+                '[AsrApi] Recognition finished',
+              )
               this.onFinish?.(payload.result.text)
+            } else {
+              this.onUpdate?.(payload.result.text)
             }
           }
         } catch (e) {
@@ -234,7 +242,11 @@ export class TtsApi {
     }
 
     this._finishSessionPromise = new Promise<boolean>((resolve) => {
-      if (!this._ws || !this._connectionId?.length || !this._sessionId?.length) {
+      if (
+        !this._ws ||
+        !this._connectionId?.length ||
+        !this._sessionId?.length
+      ) {
         resolve(true)
         return
       }
@@ -392,7 +404,9 @@ export class TtsApi {
               if (message.data instanceof Uint8Array) {
                 this.onAudioData?.(message.data)
               } else {
-                log.warn('[TtsApi] Received ttsResponse with unsupported data type')
+                log.warn(
+                  '[TtsApi] Received ttsResponse with unsupported data type',
+                )
                 this.close()
                 resolve(false)
               }
