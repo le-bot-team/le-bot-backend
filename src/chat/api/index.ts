@@ -52,14 +52,10 @@ export class ApiWrapper {
           ),
         )
       }
-      if (!recognized.length) {
-        recognized = ' '
-      }
 
-      const fullAnswer = await this._difyApi.chatMessage(
-        this._conversationId,
-        recognized,
-      )
+      const fullAnswer = recognized.length
+        ? await this._difyApi.chatMessage(this._conversationId, recognized)
+        : '我没有听清楚你说的话，请再说一遍哦~'
       if (this._outputText) {
         this._wsClient.send(
           new WsOutputTextCompleteResponseSuccess(
