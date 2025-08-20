@@ -159,7 +159,6 @@ export class ApiWrapper {
   }
 
   private async _processAudioQueue(): Promise<void> {
-    // 如果已经在处理队列，直接返回
     if (this._processingQueue) {
       return
     }
@@ -167,57 +166,43 @@ export class ApiWrapper {
     this._processingQueue = true
 
     try {
-      log.info(`[WsAction] Processing audio queue with ${this._audioQueue.length} items`)
-
       while (this._audioQueue.length > 0) {
         const audioData = this._audioQueue.shift()
         if (!audioData) {
           continue
         }
 
-        log.info(`[WsAction] Processing audio data, isComplete: ${audioData.isComplete}, buffer length: ${audioData.buffer.length}`)
-
-        // 检查是否需要建立连接
-        const needConnection = this._isFirstAudio && !this._isConnectionReady()
-        if (needConnection && !this._isConnecting()) {
-          log.info('[WsAction] Need to establish connections')
+        // 如果是第一个音频包且未连接，先建立连接
+        if (this._isFirstAudio && !this._isConnectionReady() && !this._isConnecting()) {
           await this._establishConnections()
         }
 
         // 等待连接完成
         while (this._isConnecting()) {
-          log.info('[WsAction] Waiting for connections to complete...')
           await new Promise((resolve) => setTimeout(resolve, 10))
         }
 
-        // 检查连接状态
-        const connectionReady = this._isConnectionReady()
-        log.info(`[WsAction] Connection ready status: ASR=${this._asrApi.isConnected}, TTS=${this._ttsApi.isConnected}, overall=${connectionReady}`)
-
         // 如果连接失败，清空队列并退出
-        if (!connectionReady) {
-          log.error('[WsAction] Connection failed, closing WebSocket')
+        if (!this._isConnectionReady()) {
           this._audioQueue = []
           this._wsClient.close(1008, 'API connection failed')
           break
         }
 
         // 发送音频数据
-        log.info(`[WsAction] Sending audio data to ASR API, isLast: ${audioData.isComplete}`)
         const sendResult = audioData.isComplete
           ? this._asrApi.sendAudioBase64(audioData.buffer, true)
           : this._asrApi.sendAudioBase64(audioData.buffer, false)
-        log.info(`[WsAction] ASR send result: ${sendResult}`)
 
         if (!sendResult) {
-          log.error('[WsAction] Failed to send audio data to ASR API')
+          log.warn('[WsAction] Failed to send audio data to ASR API')
+          break
         }
       }
     } catch (error) {
-      log.error(error, '[WsAction] Error in _processAudioQueue')
+      log.error(error, '[WsAction] Error in audio queue processing')
     } finally {
       this._processingQueue = false
-      log.info('[WsAction] Finished processing audio queue')
     }
   }
 

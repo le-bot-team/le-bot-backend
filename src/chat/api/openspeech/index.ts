@@ -31,19 +31,14 @@ export class AsrApi {
 
   sendAudioBase64(audioDataBase64: string, isLast = false): boolean {
     if (!this._ws || !this._isReady) {
-      log.warn('[AsrApi] Not ready to send audio data')
       return false
     }
+
     const audioData = Uint8Array.fromBase64(audioDataBase64)
+    const messageFlag = isLast ? MessageFlagType.negativeSequence : MessageFlagType.positiveSequence
+    const currentSeq = isLast ? -this._sequenceNumber : this._sequenceNumber
 
-    let messageFlag: MessageFlagType
-    let currentSeq = this._sequenceNumber
-
-    if (isLast) {
-      messageFlag = MessageFlagType.negativeSequence
-      currentSeq = -this._sequenceNumber
-    } else {
-      messageFlag = MessageFlagType.positiveSequence
+    if (!isLast) {
       this._sequenceNumber++
     }
 
@@ -66,7 +61,6 @@ export class AsrApi {
     this._sequenceNumber = 1
   }
 
-  // 添加公共方法检查连接状态
   get isConnected(): boolean {
     return !!(this._ws && this._isReady)
   }
@@ -81,7 +75,6 @@ export class AsrApi {
     }
 
     if (this._ws && this._isReady) {
-      log.warn('[AsrApi] WebSocket is already connected')
       return true
     }
 
@@ -97,8 +90,14 @@ export class AsrApi {
           },
         },
       )
-      this._ws.onclose = (event) => {
-        log.info(event, '[AsrApi] WebSocket closed')
+
+      if (!this._ws) {
+        this._connectionPromise = undefined
+        resolve(false)
+        return
+      }
+
+      this._ws.onclose = () => {
         this._isReady = false
         this._sequenceNumber = 1
         if (this._ws) {
@@ -109,6 +108,7 @@ export class AsrApi {
         this._connectionPromise = undefined
         resolve(false)
       }
+
       this._ws.onopen = () => {
         this._ws?.send(
           serializeRequestMessage(
@@ -121,37 +121,22 @@ export class AsrApi {
           ),
         )
         this._sequenceNumber++
-        log.info('[AsrApi] WebSocket opened successfully')
-      }
-
-      if (!this._ws) {
-        log.error('[AsrApi] WebSocket is not initialized')
-        this._connectionPromise = undefined
-        resolve(false)
-        return
       }
 
       this._ws.onmessage = async (event) => {
         try {
           const message = parseResponseMessage(event.data.buffer)
+
           if (message.responseType === ResponseType.errorResponse) {
-            log.warn(
-              {
-                errorType: message.errorType,
-                errorMessage: JSON.parse(message.errorMessage),
-              },
-              '[AsrApi] Error response',
-            )
+            log.warn('[AsrApi] Error response received')
             this._isReady = false
             this._connectionPromise = undefined
             resolve(false)
             return
           }
+
           if (message.responseType === ResponseType.ttsResponse) {
-            log.warn(
-              { responseType: message.responseType },
-              '[AsrApi] Received TTS response instead of ASR',
-            )
+            log.warn('[AsrApi] Received TTS response instead of ASR')
             this._isReady = false
             this._connectionPromise = undefined
             resolve(false)
@@ -159,47 +144,17 @@ export class AsrApi {
           }
 
           if (message.sequenceNumber === 1) {
-            log.info('[AsrApi] Configuration updated successfully')
             this._isReady = true
-            this._connectionPromise = undefined // 清理连接Promise
+            this._connectionPromise = undefined
             resolve(true)
-          } else {
-            if (message.serializationType === SerializationType.json) {
-              const payload = message.data as {
-                result: { text: string }
-                utterances?: {
-                  definite: boolean
-                  start_time: number
-                  end_time: number
-                  text: string
-                  words: {
-                    start_time: number
-                    end_time: number
-                    text: string
-                  }[]
-                }[]
-              }
-              log.debug(
-                {
-                  text: payload.result.text,
-                  words: payload.utterances?.map(
-                    (utterance) => utterance.words,
-                  ),
-                },
-                '[AsrApi] Text data received',
-              )
-              if (message.messageFlag === MessageFlagType.negativeSequence) {
-                log.info(
-                  { text: payload.result.text },
-                  '[AsrApi] Recognition finished',
-                )
-                this.onFinish?.(payload.result.text)
-              }
-            } else {
-              log.info(
-                { length: message.data.byteLength },
-                '[AsrApi] Binary data received',
-              )
+          } else if (message.serializationType === SerializationType.json) {
+            const payload = message.data as {
+              result: { text: string }
+            }
+
+            if (message.messageFlag === MessageFlagType.negativeSequence) {
+              log.info({ text: payload.result.text }, '[AsrApi] Recognition finished')
+              this.onFinish?.(payload.result.text)
             }
           }
         } catch (e) {
@@ -210,6 +165,7 @@ export class AsrApi {
         }
       }
     })
+
     return this._connectionPromise
   }
 }
@@ -223,7 +179,7 @@ export class TtsApi {
   private _finishSessionPromise?: Promise<boolean>
   private _onSessionFinished: (() => void) | undefined
 
-  private _voiceType = 'zh_female_tianmeixiaoyuan_moon_bigtts'
+  private readonly _voiceType = 'zh_female_tianmeixiaoyuan_moon_bigtts'
   private _ws: WebSocket | undefined
 
   onAudioData: ((audioData: Uint8Array) => void) | undefined
@@ -240,12 +196,9 @@ export class TtsApi {
     }
 
     if (this._ws && this._connectionId?.length && this._sessionId?.length) {
-      log.warn(
-        { sessionId: this._sessionId },
-        '[TtsApi] Session is already started',
-      )
       return true
     }
+
     this._startSessionPromise = new Promise<boolean>((resolve) => {
       this._ws?.send(
         serializeRequestMessage(
@@ -281,12 +234,7 @@ export class TtsApi {
     }
 
     this._finishSessionPromise = new Promise<boolean>((resolve) => {
-      if (
-        !this._ws ||
-        !this._connectionId?.length ||
-        !this._sessionId?.length
-      ) {
-        log.warn('[TtsApi] Session is already finished or not started')
+      if (!this._ws || !this._connectionId?.length || !this._sessionId?.length) {
         resolve(true)
         return
       }
@@ -307,7 +255,6 @@ export class TtsApi {
         this._onSessionFinished = undefined
         this._startSessionPromise = undefined
       }
-      return true
     })
 
     return this._finishSessionPromise
@@ -315,14 +262,6 @@ export class TtsApi {
 
   sendText(text: string): boolean {
     if (!this._ws || !this._connectionId?.length || !this._sessionId?.length) {
-      log.warn(
-        {
-          ws: this._ws,
-          connectionId: this._connectionId,
-          sessionId: this._sessionId,
-        },
-        '[TtsApi] Is not ready to send text',
-      )
       return false
     }
 
@@ -351,7 +290,6 @@ export class TtsApi {
     this._ws?.close()
   }
 
-  // 添加公共方法检查连接状态
   get isConnected(): boolean {
     return !!(this._ws && this._connectionId?.length && this._sessionId?.length)
   }
@@ -366,7 +304,6 @@ export class TtsApi {
     }
 
     if (this._ws && this._connectionId?.length) {
-      log.warn('[TtsApi] WebSocket is already connected')
       return true
     }
 
@@ -382,29 +319,28 @@ export class TtsApi {
           },
         },
       )
+
       if (!this._ws) {
-        log.error('[TtsApi] WebSocket is not initialized')
         this._connectionPromise = undefined
         resolve(false)
         return
       }
 
-      this._ws.onclose = (event) => {
-        log.warn(event, '[TtsApi] WebSocket closed')
+      this._ws.onclose = () => {
         this._connectionPromise = undefined
         this._connectionId = undefined
         this._startSessionPromise = undefined
         this._sessionId = undefined
-
         this._onSessionStarted = undefined
+
         if (this._ws) {
           this._ws.onopen = null
           this._ws.onclose = null
           this._ws = undefined
         }
-
         resolve(false)
       }
+
       this._ws.onopen = () => {
         this._ws?.send(
           serializeRequestMessage(
@@ -416,92 +352,55 @@ export class TtsApi {
             [{}],
           ),
         )
-        log.info('[TtsApi] WebSocket opened successfully')
       }
+
       this._ws.onmessage = async (event) => {
         try {
           const message = parseResponseMessage(event.data.buffer)
 
           if (message.responseType === ResponseType.errorResponse) {
-            log.warn(
-              {
-                errorType: message.errorType,
-                errorMessage: JSON.parse(message.errorMessage),
-              },
-              '[TtsApi] Error response',
-            )
+            log.warn('[TtsApi] Error response received')
             this.close()
             resolve(false)
             return
           }
+
           if (message.responseType === ResponseType.asrResponse) {
-            log.warn(
-              { responseType: message.responseType },
-              '[TtsApi] Received ASR response instead of TTS',
-            )
+            log.warn('[TtsApi] Received ASR response instead of TTS')
             this.close()
             resolve(false)
             return
           }
 
           switch (message.eventType) {
-            case TtsEventType.connectionStarted: {
-              log.info(
-                { connectionId: message.id },
-                '[TtsApi] Connection started',
-              )
+            case TtsEventType.connectionStarted:
               this._connectionId = message.id
-              this._connectionPromise = undefined // 清理连接Promise
+              this._connectionPromise = undefined
               resolve(true)
               break
-            }
-            case TtsEventType.sessionStarted: {
-              log.info({ sessionId: message.id }, '[TtsApi] Session started')
+
+            case TtsEventType.sessionStarted:
               this._onSessionStarted?.(message.id)
               break
-            }
-            case TtsEventType.sessionFinished: {
-              log.info(
-                { sessionId: this._sessionId },
-                '[TtsApi] Session finished',
-              )
+
+            case TtsEventType.sessionFinished:
               this._onSessionFinished?.()
               this.onFinish?.()
               break
-            }
-            case TtsEventType.ttsSentenceStart: {
-              log.info(
-                { sessionId: this._sessionId },
-                '[TtsApi] Sentence started',
-              )
-              break
-            }
-            case TtsEventType.ttsSentenceEnd: {
-              log.info(
-                { sessionId: this._sessionId },
-                '[TtsApi] Sentence ended',
-              )
-              break
-            }
-            case TtsEventType.ttsResponse: {
-              if (!(message.data instanceof Uint8Array)) {
-                log.warn(
-                  message,
-                  '[TtsApi] Received ttsResponse with unsupported data type',
-                )
+
+            case TtsEventType.ttsResponse:
+              if (message.data instanceof Uint8Array) {
+                this.onAudioData?.(message.data)
+              } else {
+                log.warn('[TtsApi] Received ttsResponse with unsupported data type')
                 this.close()
                 resolve(false)
-                return
               }
-              this.onAudioData?.(message.data)
               break
-            }
-            default: {
-              log.warn(message, '[TtsApi] Received unsupported TTS event type')
-              this.close()
-              resolve(false)
-              return
-            }
+
+            default:
+              // 忽略其他事件类型，如 ttsSentenceStart, ttsSentenceEnd
+              break
           }
         } catch (e) {
           log.warn(e as Error, '[TtsApi] Failed to parse TTS message')
