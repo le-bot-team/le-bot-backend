@@ -52,6 +52,9 @@ export class ApiWrapper {
           ),
         )
       }
+      if (!recognized.length) {
+        recognized = ' '
+      }
 
       const fullAnswer = await this._difyApi.chatMessage(
         this._conversationId,
