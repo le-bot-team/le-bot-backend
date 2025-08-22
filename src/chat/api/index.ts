@@ -14,6 +14,7 @@ import { log } from '@log'
 
 import { DifyApi } from './dify'
 import { AsrApi, TtsApi } from './openspeech'
+import { getResponseForUnrecognizedAsr } from './utils'
 
 export class ApiWrapper {
   private readonly _asrApi: AsrApi
@@ -32,10 +33,13 @@ export class ApiWrapper {
     private readonly _userId: bigint,
     private readonly _deviceId: string,
   ) {
+    // TODO: Read from database instead of hardcoding
+    const userName = this._userId.toString()
+
     this._asrApi = new AsrApi(this._wsClient.id, this._userId, this._deviceId)
     this._difyApi = new DifyApi(
       'http://cafuuchino.studio26f.org:22480',
-      this._userId,
+      userName,
     )
     this._ttsApi = new TtsApi(this._wsClient.id, this._userId)
 
@@ -55,7 +59,7 @@ export class ApiWrapper {
 
       const fullAnswer = recognized.length
         ? await this._difyApi.chatMessage(this._conversationId, recognized)
-        : '我没有听清楚你说的话，请再说一遍哦~'
+        : getResponseForUnrecognizedAsr()
       if (this._outputText) {
         this._wsClient.send(
           new WsOutputTextCompleteResponseSuccess(

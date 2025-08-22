@@ -4,12 +4,13 @@ import { STREAM_DATA_PREFIX } from './constants'
 import { DifyEvent } from './types'
 
 export class DifyApi {
+
   onConversationId: ((conversationId: string) => void) | undefined
   onUpdate: ((text: string) => void) | undefined
 
   constructor(
     private readonly _baseUrl: string,
-    private readonly _userId: bigint,
+    private readonly _userName: string,
   ) {}
 
   async chatMessage(
@@ -28,7 +29,7 @@ export class DifyApi {
         query,
         response_mode: 'streaming',
         conversation_id: conversationId,
-        user: this._userId.toString(),
+        user: this._userName,
       }),
     })
 
