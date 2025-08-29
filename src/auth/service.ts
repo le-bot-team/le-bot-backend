@@ -4,11 +4,13 @@ import {
   emailChallengeValidator,
   emailCodeValidator,
   emailPasswordValidator,
+  emailResetValidator,
 } from './validation/email'
 import {
   phoneChallengeValidator,
   phoneCodeValidator,
   phonePasswordValidator,
+  phoneResetValidator,
 } from './validation/phone'
 
 export const authService = new Elysia({ name: 'auth/service' })
@@ -22,9 +24,11 @@ export const authService = new Elysia({ name: 'auth/service' })
     emailChallenge: emailChallengeValidator,
     emailCode: emailCodeValidator,
     emailPassword: emailPasswordValidator,
+    emailReset: emailResetValidator,
     phoneChallenge: phoneChallengeValidator,
     phoneCode: phoneCodeValidator,
     phonePassword: phonePasswordValidator,
+    phoneReset: phoneResetValidator,
   })
   .macro({
     checkAccessToken: (enabled: boolean) => {

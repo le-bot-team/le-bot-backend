@@ -8,19 +8,18 @@ import { log } from '@log'
 
 import { authService } from './service'
 
-
 export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
   .use(authService)
   .use(dbInstance)
   .post(
     '/email/code',
-    async ({ body: { email, code }, db, status, store }) => {
+    async ({ body: { email, code }, db, store }) => {
       const storedCode = store.emailToCodeMap.get(email)
       if (!storedCode || storedCode !== code) {
-        return status(400, {
+        return {
           success: false,
           message: 'Invalid code',
-        })
+        }
       }
 
       const selectedUsersResult = await db
@@ -35,21 +34,21 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
           })
           .returning({ id: users.id })
         if (!insertResult.length) {
-          return status(500, {
+          return {
             success: false,
             message: 'Failed to create user',
-          })
+          }
         }
         const accessToken = Bun.randomUUIDv7()
         store.accessTokenToUserIdMap.set(accessToken, insertResult[0].id)
-        return status(201, {
+        return {
           success: true,
           data: {
             accessToken,
             isNew: true,
             noPassword: true,
           },
-        })
+        }
       } else {
         const user = selectedUsersResult[0]
         if (user.passwordHash?.length) {
@@ -73,7 +72,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
   )
   .post(
     '/email/challenge',
-    async ({ body: { email }, status, store }) => {
+    async ({ body: { email }, store }) => {
       const code = Bun.randomUUIDv7().slice(0, 6).toUpperCase()
       store.emailToCodeMap.set(email, code)
       try {
@@ -98,11 +97,95 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
         }
       } catch (e) {
         log.error(e, 'Failed to send email')
-        return status(500, {
+        return {
           success: false,
           message: 'Failed to send email',
-        })
+        }
       }
     },
     { body: 'emailChallenge' },
+  )
+  .post(
+    '/email/password',
+    async ({ body: { email, password }, db, store }) => {
+      const selectedUsersResult = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+      if (!selectedUsersResult.length) {
+        return {
+          success: false,
+          message: 'User not found',
+        }
+      }
+      const user = selectedUsersResult[0]
+      if (!user.passwordHash?.length) {
+        return {
+          success: false,
+          message: 'No password set, please use code to sign in',
+        }
+      }
+      if (!(await Bun.password.verify(password, user.passwordHash))) {
+        return {
+          success: false,
+          message: 'Invalid password',
+        }
+      }
+      const accessToken = Bun.randomUUIDv7()
+      store.accessTokenToUserIdMap.set(accessToken, user.id)
+      return {
+        success: true,
+        data: {
+          accessToken,
+          isNew: false,
+          noPassword: false,
+        },
+      }
+    },
+    { body: 'emailPassword' },
+  )
+  .post(
+    '/email/reset',
+    async ({ body: { email, code, newPassword }, db, store }) => {
+      const storedCode = store.emailToCodeMap.get(email)
+      if (!storedCode || storedCode !== code) {
+        return {
+          success: false,
+          message: 'Invalid code',
+        }
+      }
+      const selectedUsersResult = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+      if (!selectedUsersResult.length) {
+        return {
+          success: false,
+          message: 'User not found',
+        }
+      }
+      const user = selectedUsersResult[0]
+      const updateResult = await db
+        .update(users)
+        .set({
+          passwordHash: await Bun.password.hash(newPassword, {
+            algorithm: 'bcrypt',
+          }),
+        })
+        .where(eq(users.id, user.id))
+        .returning({ id: users.id })
+      if (!updateResult.length) {
+        return {
+          success: false,
+          message: 'Failed to update password',
+        }
+      }
+      store.emailToCodeMap.delete(storedCode)
+      return {
+        success: true,
+      }
+    },
+    {
+      body: 'emailReset',
+    },
   )
