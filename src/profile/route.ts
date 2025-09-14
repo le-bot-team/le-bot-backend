@@ -3,6 +3,8 @@ import { userProfiles } from '@db/schema'
 import { eq } from 'drizzle-orm'
 import Elysia from 'elysia'
 
+import { authService } from '@auth/service'
+
 import { profileService } from './service'
 import {
   retrieveProfileInfoValidator,
@@ -10,15 +12,44 @@ import {
 } from './validation'
 
 export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
+  .use(authService)
   .use(profileService)
   .use(dbInstance)
   .get(
-    '/info',
-    async ({ query: { id }, db }) => {
+    '/avatar',
+    async ({ query: { id }, db, userId }) => {
       const selectedUsersResult = await db
         .select()
         .from(userProfiles)
-        .where(eq(userProfiles.id, Number(id)))
+        .where(eq(userProfiles.id, id ? Number(id) : Number(userId)))
+      if (!selectedUsersResult.length) {
+        return {
+          success: false,
+          message: 'User not found',
+        }
+      }
+      const selectedUser = selectedUsersResult[0]
+      return {
+        success: true,
+        data: {
+          id: selectedUser.id,
+          avatar: selectedUser.avatar,
+          avatarHash: selectedUser.avatarHash,
+        },
+      }
+    },
+    {
+      query: retrieveProfileInfoValidator,
+      checkAccessToken: true,
+    },
+  )
+  .get(
+    '/info',
+    async ({ query: { id }, db, userId }) => {
+      const selectedUsersResult = await db
+        .select()
+        .from(userProfiles)
+        .where(eq(userProfiles.id, id ? Number(id) : Number(userId)))
       if (!selectedUsersResult.length) {
         return {
           success: false,
@@ -41,15 +72,16 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
     },
     {
       query: retrieveProfileInfoValidator,
+      checkAccessToken: true,
     },
   )
   .put(
     '/info',
-    async ({ body, db }) => {
+    async ({ body, db, userId }) => {
       const selectedUsersResult = await db
         .select()
         .from(userProfiles)
-        .where(eq(userProfiles.id, Number(body.id)))
+        .where(eq(userProfiles.id, Number(userId)))
       if (!selectedUsersResult.length) {
         return {
           success: false,
@@ -66,9 +98,9 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
                 .update(body.avatar)
                 .digest('hex')
             : undefined,
-          updatedAt: Date.now(),
+          updatedAt: new Date().toISOString(),
         })
-        .where(eq(userProfiles.id, body.id))
+        .where(eq(userProfiles.id, Number(userId)))
         .returning({ id: userProfiles.id })
 
       if (!updateResult.length) {
@@ -84,5 +116,6 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
     },
     {
       body: updateProfileInfoValidator,
+      checkAccessToken: true,
     },
   )

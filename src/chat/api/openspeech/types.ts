@@ -120,7 +120,7 @@ export interface TtsRequest {
       format?: 'mp3' | 'ogg_opus' | 'pcm' // Default: 'mp3'
       sample_rate?: 8000 | 16000 | 22050 | 24000 | 32000 | 41000 | 48000 // Default: 24000
       bit_rate?: number // Default: 64000 ~ 160000
-      emotion?: string;
+      emotion?: string
       emotion_scale?: number // Default: 4
       speech_rate?: number // Default: 0
       loudness_rate?: number // Default: 0
@@ -167,7 +167,10 @@ export type TtsResponse = {
         id: string
       }
     | {
-        eventType: TtsEventType.sessionFinished | TtsEventType.ttsSentenceStart | TtsEventType.ttsSentenceEnd
+        eventType:
+          | TtsEventType.sessionFinished
+          | TtsEventType.ttsSentenceStart
+          | TtsEventType.ttsSentenceEnd
       }
   )
 

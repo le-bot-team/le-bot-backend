@@ -4,7 +4,6 @@ import { STREAM_DATA_PREFIX } from './constants'
 import { DifyEvent } from './types'
 
 export class DifyApi {
-
   onConversationId: ((conversationId: string) => void) | undefined
   onUpdate: ((text: string) => void) | undefined
 

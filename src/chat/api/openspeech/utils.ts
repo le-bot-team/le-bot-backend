@@ -283,7 +283,7 @@ export const createAsrRequestData = (
       show_utterances: true,
       // vad_segment_duration: 1500,
       end_window_size: 200,
-      force_to_speech_time: 1000
+      force_to_speech_time: 1000,
     },
   }
 }

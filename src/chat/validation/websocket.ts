@@ -54,7 +54,7 @@ export const wsRequestValidator = t.Union([
   wsInputAudioStreamRequestValidator,
   wsInputAudioCompleteRequestValidator,
   wsClearContextRequestValidator,
-  wsCancelOutputRequestValidator
+  wsCancelOutputRequestValidator,
 ])
 
 export const wsQueryValidator = t.Object({

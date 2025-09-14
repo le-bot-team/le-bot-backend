@@ -2,6 +2,7 @@
   "name": "le-bot-backend",
   "version": "1.1.1",
   "scripts": {
+    "format": "prettier --write \"./src*/**/*.{ts,js,cjs,mjs,json,md}\"",
     "lint": "eslint -c ./eslint.config.mjs \"./src*/**/*.{ts,js,cjs,mjs}\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts | pino-pretty -c -t SYS:standard -S"

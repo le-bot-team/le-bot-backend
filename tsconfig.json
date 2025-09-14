@@ -44,6 +44,9 @@
       "@log": [
         "./src/log"
       ],
+      "@profile/*": [
+        "./src/profile/*"
+      ],
       "src/*": [
         "./src/*"
       ]

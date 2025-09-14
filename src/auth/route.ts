@@ -3,7 +3,7 @@ import { Elysia } from 'elysia'
 import nodemailer from 'nodemailer'
 
 import { dbInstance } from '@db/plugin'
-import { users } from '@db/schema'
+import { userProfiles, users } from '@db/schema'
 import { log } from '@log'
 
 import { authService } from './service'
@@ -39,6 +39,22 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
             message: 'Failed to create user',
           }
         }
+        if (
+          !(
+            await db
+              .insert(userProfiles)
+              .values({
+                id: Number(insertResult[0].id),
+              })
+              .returning({ id: users.id })
+          ).length
+        ) {
+          return {
+            success: false,
+            message: 'Failed to create user',
+          }
+        }
+
         const accessToken = Bun.randomUUIDv7()
         store.accessTokenToUserIdMap.set(accessToken, insertResult[0].id)
         return {
