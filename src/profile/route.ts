@@ -1,5 +1,5 @@
 import { dbInstance } from '@db/plugin'
-import { userProfiles, users } from '@db/schema'
+import { userProfiles } from '@db/schema'
 import { eq } from 'drizzle-orm'
 import Elysia from 'elysia'
 
@@ -18,7 +18,7 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
       const selectedUsersResult = await db
         .select()
         .from(userProfiles)
-        .where(eq(userProfiles.id, id))
+        .where(eq(userProfiles.id, Number(id)))
       if (!selectedUsersResult.length) {
         return {
           success: false,
@@ -49,7 +49,7 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
       const selectedUsersResult = await db
         .select()
         .from(userProfiles)
-        .where(eq(userProfiles.id, body.id))
+        .where(eq(userProfiles.id, Number(body.id)))
       if (!selectedUsersResult.length) {
         return {
           success: false,
@@ -57,29 +57,24 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
         }
       }
 
-      let updateBuilder = db.update(userProfiles).set({}).where(eq(userProfiles.id, body.id))
-
-      if (body.nickname !== undefined) {
-        updateBuilder = updateBuilder.set({ nickname: body.nickname })
-      }
-      if (body.bio !== undefined) {
-        updateBuilder.set({ bio: body.bio })
-      }
-      if (body.avatar !== undefined) {
-        updateBuilder.set({
-          avatar: body.avatar,
-          avatarHash: new Bun.CryptoHasher('blake2b512')
-            .update(body.avatar)
-            .digest('hex'),
+      const updateResult = await db
+        .update(userProfiles)
+        .set({
+          ...body,
+          avatarHash: body.avatar
+            ? new Bun.CryptoHasher('blake2b512')
+                .update(body.avatar)
+                .digest('hex')
+            : undefined,
+          updatedAt: Date.now(),
         })
-      }
+        .where(eq(userProfiles.id, body.id))
+        .returning({ id: userProfiles.id })
 
-      const updateResult = await updateBuilder
-        .returning({ id: users.id })
       if (!updateResult.length) {
         return {
           success: false,
-          message: 'Failed to update password',
+          message: 'Failed to update profile',
         }
       }
 
