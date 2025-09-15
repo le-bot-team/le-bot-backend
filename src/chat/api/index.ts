@@ -31,15 +31,14 @@ export class ApiWrapper {
   constructor(
     private readonly _wsClient: ElysiaWS,
     private readonly _userId: bigint,
+    private readonly _nickname: string,
     private readonly _deviceId: string,
   ) {
-    // TODO: Read from database instead of hardcoding
-    const userName = this._userId.toString()
-
     this._asrApi = new AsrApi(this._wsClient.id, this._userId, this._deviceId)
     this._difyApi = new DifyApi(
       'http://cafuuchino.studio26f.org:22480',
-      userName,
+      this._userId,
+      this._nickname,
     )
     this._ttsApi = new TtsApi(this._wsClient.id, this._userId)
 
@@ -58,7 +57,11 @@ export class ApiWrapper {
       }
 
       const fullAnswer = recognized.length
-        ? await this._difyApi.chatMessage(this._conversationId, recognized)
+        ? await this._difyApi.chatMessage(
+            this._conversationId,
+            recognized,
+            !this._conversationId.length,
+          )
         : getResponseForUnrecognizedAsr()
       if (this._outputText) {
         this._wsClient.send(

@@ -9,13 +9,14 @@ export class DifyApi {
 
   constructor(
     private readonly _baseUrl: string,
-    private readonly _userName: string,
+    private readonly _userId: bigint,
+    private readonly _nickname: string,
   ) {}
 
   async chatMessage(
     conversationId: string,
     query: string,
-    inputs: Record<string, string> = {},
+    isNew: boolean,
   ): Promise<string> {
     const response = await fetch(`${this._baseUrl}/v1/chat-messages`, {
       method: 'POST',
@@ -24,11 +25,14 @@ export class DifyApi {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        inputs,
+        inputs: {
+          name: this._nickname,
+          first_chat: isNew.toString(),
+        },
         query,
         response_mode: 'streaming',
         conversation_id: conversationId,
-        user: this._userName,
+        user: Number(this._userId),
       }),
     })
 

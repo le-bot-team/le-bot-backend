@@ -1,5 +1,7 @@
 import { Elysia } from 'elysia'
 
+import { log } from '@log'
+
 import {
   emailChallengeValidator,
   emailCodeValidator,
@@ -43,6 +45,8 @@ export const authService = new Elysia({ name: 'auth/service' })
           }
         }
         const accessToken = headers['x-access-token']
+
+        log.info({ accessToken }, 'Access Token:')
 
         const createdAt = store.accessTokenCreatedAtMap.get(accessToken)
         const userId = store.accessTokenToUserIdMap.get(accessToken)

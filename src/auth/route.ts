@@ -56,6 +56,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
         }
 
         const accessToken = Bun.randomUUIDv7()
+        store.accessTokenCreatedAtMap.set(accessToken, new Date())
         store.accessTokenToUserIdMap.set(accessToken, insertResult[0].id)
         return {
           success: true,
@@ -71,6 +72,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
           store.emailToCodeMap.delete(storedCode)
         }
         const accessToken = Bun.randomUUIDv7()
+        store.accessTokenCreatedAtMap.set(accessToken, new Date())
         store.accessTokenToUserIdMap.set(accessToken, user.id)
         return {
           success: true,
@@ -148,7 +150,10 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
         }
       }
       const accessToken = Bun.randomUUIDv7()
+      store.accessTokenCreatedAtMap.set(accessToken, new Date())
       store.accessTokenToUserIdMap.set(accessToken, user.id)
+
+      log.info({ accessToken }, 'Access Token:')
       return {
         success: true,
         data: {
@@ -203,5 +208,14 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
     },
     {
       body: 'emailReset',
+    },
+  )
+  .get(
+    '/validate',
+    () => ({
+      success: true,
+    }),
+    {
+      checkAccessToken: true,
     },
   )
