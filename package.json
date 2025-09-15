@@ -1,6 +1,6 @@
 {
   "name": "le-bot-backend",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "scripts": {
     "format": "prettier --write \"./src*/**/*.{ts,js,cjs,mjs,json,md}\"",
     "lint": "eslint -c ./eslint.config.mjs \"./src*/**/*.{ts,js,cjs,mjs}\"",
