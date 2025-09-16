@@ -20,10 +20,11 @@ const app = new Elysia()
       }),
       APP_ID: t.String({ minLength: 1, description: 'App ID for the bot' }),
       DATABASE_URL: t.String({ description: 'Database connection URL' }),
+      DIFY_API_KEY: t.String({ description: 'Dify API key for AI services' }),
+      DIFY_URL: t.Optional(t.String({ description: 'Dify endpoint URL' })),
       SMTP_HOST: t.String({ description: 'SMTP server host' }),
       SMTP_PASSWORD: t.String({ description: 'SMTP server password' }),
       SMTP_USERNAME: t.String({ description: 'SMTP server username' }),
-      DIFY_API_KEY: t.String({ description: 'Dify API key for AI services' }),
     }),
   )
   .use(cors())
