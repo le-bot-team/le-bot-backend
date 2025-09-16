@@ -56,36 +56,42 @@ export class ApiWrapper {
         )
       }
 
-      const fullAnswer = recognized.length
-        ? await this._difyApi.chatMessage(
-            this._conversationId,
-            recognized,
-            !this._conversationId.length,
+      try {
+        const fullAnswer = recognized.length
+          ? await this._difyApi.chatMessage(
+              this._conversationId,
+              recognized,
+              !this._conversationId.length,
+            )
+          : getResponseForUnrecognizedAsr()
+        if (this._outputText) {
+          this._wsClient.send(
+            new WsOutputTextCompleteResponseSuccess(
+              this._wsClient.id,
+              this._wsClient.id,
+              this._conversationId,
+              'assistant',
+              fullAnswer,
+            ),
           )
-        : getResponseForUnrecognizedAsr()
-      if (this._outputText) {
+        }
+
+        this._ttsApi.sendText(fullAnswer)
+        await this._ttsApi.finishSession()
         this._wsClient.send(
-          new WsOutputTextCompleteResponseSuccess(
+          new WsChatCompleteResponseSuccess(
             this._wsClient.id,
             this._wsClient.id,
             this._conversationId,
-            'assistant',
-            fullAnswer,
+            0,
+            0,
           ),
         )
+      } catch (error) {
+        log.error(error, '[WsAction] Error during ASR finish handling')
+        this._wsClient.close(1011, 'Internal server error')
+        return
       }
-
-      this._ttsApi.sendText(fullAnswer)
-      await this._ttsApi.finishSession()
-      this._wsClient.send(
-        new WsChatCompleteResponseSuccess(
-          this._wsClient.id,
-          this._wsClient.id,
-          this._conversationId,
-          0,
-          0,
-        ),
-      )
     }
     this._asrApi.onUpdate = (text) => {
       if (this._outputText) {
