@@ -28,7 +28,7 @@ const app = new Elysia()
     }),
   )
   .use(cors())
-  .use(staticPlugin())
+  .use(staticPlugin({ prefix: '/' }))
   .use(swagger())
   .onError((ctx) => {
     ctx.log?.error(ctx, ctx.error.toString())
