@@ -25,21 +25,14 @@ export class DifyApi {
       {
         url: `${baseUrl}/v1/chat-messages`,
         body: {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.DIFY_API_KEY}`,
-            'Content-Type': 'application/json',
+          inputs: {
+            name: this._nickname,
+            first_chat: isNew.toString(),
           },
-          body: JSON.stringify({
-            inputs: {
-              name: this._nickname,
-              first_chat: isNew.toString(),
-            },
-            query,
-            response_mode: 'streaming',
-            conversation_id: conversationId,
-            user: Number(this._userId),
-          }),
+          query,
+          response_mode: 'streaming',
+          conversation_id: conversationId,
+          user: Number(this._userId),
         },
       },
       '[DifyApi] Sending chat message',
