@@ -36,7 +36,6 @@ export class ApiWrapper {
   ) {
     this._asrApi = new AsrApi(this._wsClient.id, this._userId, this._deviceId)
     this._difyApi = new DifyApi(
-      process.env.DIFY_URL ?? 'http://cafuuchino.studio26f.org:22480',
       this._userId,
       this._nickname,
     )

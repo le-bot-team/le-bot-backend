@@ -8,7 +8,6 @@ export class DifyApi {
   onUpdate: ((text: string) => void) | undefined
 
   constructor(
-    private readonly _baseUrl: string,
     private readonly _userId: bigint,
     private readonly _nickname: string,
   ) {}
@@ -18,7 +17,15 @@ export class DifyApi {
     query: string,
     isNew: boolean,
   ): Promise<string> {
-    const response = await fetch(`${this._baseUrl}/v1/chat-messages`, {
+    const baseUrl = process.env.DIFY_URL?.length
+      ? process.env.DIFY_URL
+      : 'http://cafuuchino.studio26f.org:22480'
+    log.info(
+      { baseUrl, conversationId, isNew },
+      '[DifyApi] Sending chat message',
+    )
+
+    const response = await fetch(`${baseUrl}/v1/chat-messages`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.DIFY_API_KEY}`,
