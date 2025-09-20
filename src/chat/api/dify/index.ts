@@ -20,8 +20,28 @@ export class DifyApi {
     const baseUrl = process.env.DIFY_URL?.length
       ? process.env.DIFY_URL
       : 'http://cafuuchino.studio26f.org:22480'
+
     log.info(
-      { baseUrl, conversationId, isNew },
+      {
+        url: `${baseUrl}/v1/chat-messages`,
+        body: {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.DIFY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inputs: {
+              name: this._nickname,
+              first_chat: isNew.toString(),
+            },
+            query,
+            response_mode: 'streaming',
+            conversation_id: conversationId,
+            user: Number(this._userId),
+          }),
+        },
+      },
       '[DifyApi] Sending chat message',
     )
 
