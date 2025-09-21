@@ -17,11 +17,7 @@ export class DifyApi {
     query: string,
     isNew: boolean,
   ): Promise<string> {
-    const baseUrl = process.env.DIFY_URL?.length
-      ? process.env.DIFY_URL
-      : 'http://cafuuchino.studio26f.org:22480'
-
-    const response = await Bun.fetch(`${baseUrl}/v1/chat-messages`, {
+    const response = await Bun.fetch(`${process.env.DIFY_URL}/v1/chat-messages`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.DIFY_API_KEY}`,
