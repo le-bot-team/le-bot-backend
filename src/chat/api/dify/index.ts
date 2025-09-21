@@ -21,24 +21,7 @@ export class DifyApi {
       ? process.env.DIFY_URL
       : 'http://cafuuchino.studio26f.org:22480'
 
-    log.info(
-      {
-        url: `${baseUrl}/v1/chat-messages`,
-        body: {
-          inputs: {
-            name: this._nickname,
-            first_chat: isNew.toString(),
-          },
-          query,
-          response_mode: 'streaming',
-          conversation_id: conversationId,
-          user: Number(this._userId),
-        },
-      },
-      '[DifyApi] Sending chat message',
-    )
-
-    const response = await fetch(`${baseUrl}/v1/chat-messages`, {
+    const response = await Bun.fetch(`${baseUrl}/v1/chat-messages`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.DIFY_API_KEY}`,
@@ -52,8 +35,9 @@ export class DifyApi {
         query,
         response_mode: 'streaming',
         conversation_id: conversationId,
-        user: Number(this._userId),
+        user: this._userId.toString(),
       }),
+      verbose: true,
     })
 
     if (!response.ok || !response.body) {
