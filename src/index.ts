@@ -13,10 +13,15 @@ const app = new Elysia()
   .use(log.into())
   .use(
     env({
-      ACCESS_TOKEN: t.String({
+      OPENSPEECH_ACCESS_TOKEN: t.String({
         minLength: 32,
         maxLength: 32,
         description: 'Access token for the bot',
+      }),
+      ARK_API_KEY: t.String({
+        minLength: 36,
+        maxLength: 36,
+        description: 'Ark API key for ASR services',
       }),
       APP_ID: t.String({ minLength: 1, description: 'App ID for the bot' }),
       DATABASE_URL: t.String({ description: 'Database connection URL' }),
