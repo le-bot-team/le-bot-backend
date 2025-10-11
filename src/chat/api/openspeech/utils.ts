@@ -277,10 +277,13 @@ export const createAsrRequestData = (
     },
     request: {
       model_name: 'bigmodel',
+      enable_nonstream: false,
       enable_itn: true,
       enable_punc: true,
       enable_ddc: true,
       show_utterances: true,
+      enable_accelerate_text: true,
+      accelerate_score: 10,
       // vad_segment_duration: 1500,
       end_window_size: 200,
       force_to_speech_time: 1000,

@@ -83,7 +83,7 @@ export class AsrApi {
 
     this._connectionPromise = new Promise<boolean>((resolve) => {
       this._ws = new WebSocket(
-        'wss://openspeech.bytedance.com/api/v3/sauc/bigmodel',
+        'wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async',
         {
           headers: {
             'X-Api-Access-Key': process.env.ACCESS_TOKEN,

@@ -88,11 +88,18 @@ export interface AsrRequest {
   }
   request: {
     model_name: 'bigmodel'
+    enable_nonstream?: boolean // Default: false
     enable_itn?: boolean // Default: true
     enable_punc?: boolean // Default: true
     enable_ddc?: boolean // Default: false
     show_utterances?: boolean // Default: false
+    show_volume?: boolean // Default: false
+    enable_lid?: boolean // Default: false
+    enable_emotion_detection?: boolean // Default: false
+    enable_gender_detection?: boolean // Default: false
     result_type?: 'full' | 'single' // Default: 'full'
+    enable_accelerate_text?: boolean // Default: false
+    accelerate_score?: number // Default: 0, Range: 0 ~ 20
     vad_segment_duration?: number // Default: 3000 (ms)
     end_window_size?: number // Default: 800 (ms)
     force_to_speech_time?: number // Default: 10000 (ms)
