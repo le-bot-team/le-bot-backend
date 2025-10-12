@@ -33,7 +33,6 @@ export class DifyApi {
         conversation_id: conversationId,
         user: this._userId.toString(),
       }),
-      verbose: true,
     })
 
     if (!response.ok || !response.body) {

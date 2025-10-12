@@ -83,10 +83,10 @@ export class AsrApi {
 
     this._connectionPromise = new Promise<boolean>((resolve) => {
       this._ws = new WebSocket(
-        'wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async',
+        'wss://openspeech.bytedance.com/api/v3/sauc/bigmodel',
         {
           headers: {
-            'X-Api-Access-Key': process.env.ACCESS_TOKEN,
+            'X-Api-Access-Key': process.env.OPENSPEECH_ACCESS_TOKEN,
             'X-Api-App-Key': process.env.APP_ID,
             'X-Api-Resource-Id': 'volc.bigasr.sauc.duration',
             'X-Api-Connect-Id': this._connectId,
@@ -151,18 +151,17 @@ export class AsrApi {
             this._connectionPromise = undefined
             resolve(true)
           } else if (message.serializationType === SerializationType.json) {
-            const payload = message.data as {
-              result: { text: string }
-            }
+            const data = message.data
+            log.debug(data)
 
             if (message.messageFlag === MessageFlagType.negativeSequence) {
               log.info(
-                { text: payload.result.text },
+                { text: data.result.text },
                 '[AsrApi] Recognition finished',
               )
-              this.onFinish?.(payload.result.text)
+              this.onFinish?.(data.result.text)
             } else {
-              this.onUpdate?.(payload.result.text)
+              this.onUpdate?.(data.result.text)
             }
           }
         } catch (e) {
@@ -324,7 +323,7 @@ export class TtsApi {
         'wss://openspeech.bytedance.com/api/v3/tts/bidirection',
         {
           headers: {
-            'X-Api-Access-Key': process.env.ACCESS_TOKEN,
+            'X-Api-Access-Key': process.env.OPENSPEECH_ACCESS_TOKEN,
             'X-Api-App-Key': process.env.APP_ID,
             'X-Api-Resource-Id': 'volc.service_type.10029',
             'X-Api-Connect-Id': this._connectId,

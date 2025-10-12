@@ -80,11 +80,6 @@ const parseMessage = (message: ArrayBuffer) => {
 export const parseResponseMessage = (
   rawMessage: ArrayBuffer,
 ): AsrResponse | TtsResponse | ErrorResponse => {
-  // console.log({
-  //   raw: Array.from(new Uint8Array(rawMessage))
-  //     .map((b) => b.toString(2).padStart(8, '0'))
-  //     .join(' '),
-  // })
   const {
     messageType,
     messageFlag,
@@ -92,18 +87,6 @@ export const parseResponseMessage = (
     compressionType,
     payload,
   } = parseMessage(rawMessage)
-
-  // console.log({
-  //   protocolVersion,
-  //   headerSize,
-  //   messageType,
-  //   messageFlag,
-  //   serializationType,
-  //   compressionType,
-  //   reserved,
-  //   headerExtensions,
-  //   payload,
-  // })
 
   if (messageFlag === MessageFlagType.withEvent) {
     const dataView = new DataView(payload)

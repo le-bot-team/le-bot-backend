@@ -144,7 +144,32 @@ export type AsrResponse = {
 } & (
   | {
       serializationType: SerializationType.json
-      data: object
+      data: {
+        audio_info: {
+          duration: number
+        }
+        result: {
+          additions: {
+            log_id: string
+          }
+          text: string
+          utterances?: {
+            additions: {
+              all_matched_hotwords: string
+              fixed_prefix_result: string,
+            }
+            definite: boolean
+            end_time: number
+            start_time: number
+            text: string
+            words: {
+              end_time: number
+              start_time: number
+              text: string
+            }[]
+          }[]
+        }
+      }
     }
   | {
       serializationType: SerializationType.none
