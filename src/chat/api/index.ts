@@ -35,10 +35,7 @@ export class ApiWrapper {
     private readonly _deviceId: string,
   ) {
     this._asrApi = new AsrApi(this._wsClient.id, this._userId, this._deviceId)
-    this._difyApi = new DifyApi(
-      this._userId,
-      this._nickname,
-    )
+    this._difyApi = new DifyApi(this._userId, this._nickname)
     this._ttsApi = new TtsApi(this._wsClient.id, this._userId)
 
     this._asrApi.onFinish = async (recognized) => {
@@ -53,6 +50,13 @@ export class ApiWrapper {
             recognized,
           ),
         )
+      }
+
+      if (recognized.length < 2) {
+        log.warn({ recognized }, '[WsAction] ASR text too short, ignored')
+        this._isReady = true
+        this._isFirstAudio = true
+        return
       }
 
       try {
@@ -141,7 +145,6 @@ export class ApiWrapper {
       )
       this._isReady = true
       this._isFirstAudio = true
-      // 不再需要手动重置连接状态，因为TTS会话结束后状态会自动重置
     }
   }
 

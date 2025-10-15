@@ -19,6 +19,7 @@ export class AsrApi {
   private _connectionPromise?: Promise<boolean>
   private _isReady = false
   private _sequenceNumber = 1
+  private _utteranceNumber = 0
   private _ws: WebSocket | undefined
 
   onFinish: ((recognized: string) => void) | undefined
@@ -151,17 +152,19 @@ export class AsrApi {
             this._connectionPromise = undefined
             resolve(true)
           } else if (message.serializationType === SerializationType.json) {
-            const data = message.data
-            log.debug(data)
-
-            if (message.messageFlag === MessageFlagType.negativeSequence) {
-              log.info(
-                { text: data.result.text },
-                '[AsrApi] Recognition finished',
-              )
-              this.onFinish?.(data.result.text)
-            } else {
-              this.onUpdate?.(data.result.text)
+            const { result } = message.data
+            const currentUtterance = result.utterances?.[this._utteranceNumber]
+            if (currentUtterance) {
+              if (currentUtterance.definite) {
+                this.onFinish?.(currentUtterance.text)
+                this._utteranceNumber++
+                log.info(
+                  { text: currentUtterance.text },
+                  '[AsrApi] Utterance recognized',
+                )
+              } else {
+                this.onUpdate?.(currentUtterance.text)
+              }
             }
           }
         } catch (e) {
