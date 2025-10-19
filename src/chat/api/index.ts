@@ -55,7 +55,6 @@ export class ApiWrapper {
       if (recognized.length < 2) {
         log.warn({ recognized }, '[WsAction] ASR text too short, ignored')
         this._isReady = true
-        this._isFirstAudio = true
         return
       }
 
@@ -144,7 +143,6 @@ export class ApiWrapper {
         ),
       )
       this._isReady = true
-      this._isFirstAudio = true
     }
   }
 
