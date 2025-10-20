@@ -132,7 +132,7 @@ export class AsrApi {
           const message = parseResponseMessage(event.data.buffer)
 
           if (message.responseType === ResponseType.errorResponse) {
-            log.warn('[AsrApi] Error response received')
+            log.warn({ message }, '[AsrApi] Error response received')
             this._isReady = false
             this._connectionPromise = undefined
             resolve(false)
@@ -302,6 +302,12 @@ export class TtsApi {
 
   close() {
     this._ws?.close()
+  }
+
+  abort(): void {
+    log.info('[TtsApi] Aborting TTS session')
+    // Immediately finish the session without waiting for response
+    this._ws?.terminate()
   }
 
   get isConnected(): boolean {

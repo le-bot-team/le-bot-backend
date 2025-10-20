@@ -7,16 +7,25 @@ export class DifyApi {
   onConversationId: ((conversationId: string) => void) | undefined
   onUpdate: ((text: string) => void) | undefined
 
+  private _abortController: AbortController | undefined
+
   constructor(
     private readonly _userId: bigint,
     private readonly _nickname: string,
   ) {}
+
+  abort(): void {
+    this._abortController?.abort()
+    this._abortController = undefined
+  }
 
   async chatMessage(
     conversationId: string,
     query: string,
     isNew: boolean,
   ): Promise<string> {
+    this._abortController = new AbortController()
+
     const response = await Bun.fetch(`${process.env.DIFY_URL}/v1/chat-messages`, {
       method: 'POST',
       headers: {
@@ -33,6 +42,7 @@ export class DifyApi {
         conversation_id: conversationId,
         user: this._userId.toString(),
       }),
+      signal: this._abortController.signal,
     })
 
     if (!response.ok || !response.body) {
@@ -53,6 +63,12 @@ export class DifyApi {
 
     try {
       while (!finished) {
+        // Check if aborted
+        if (this._abortController?.signal.aborted) {
+          log.info('[DifyApi] Streaming aborted')
+          break
+        }
+
         const { done, value } = await reader.read()
         if (done) {
           break

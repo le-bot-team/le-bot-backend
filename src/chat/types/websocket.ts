@@ -44,6 +44,12 @@ abstract class WsBaseResponseError {
   }
 }
 
+export class WsEstablishConnectionResponseSuccess extends WsBaseResponseSuccess {
+  constructor(messageId: string) {
+    super(messageId, 'establishConnection')
+  }
+}
+
 export class WsUpdateConfigResponseSuccess extends WsBaseResponseSuccess {
   constructor(
     messageId: string,

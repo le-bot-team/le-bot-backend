@@ -8,6 +8,7 @@ import { log } from '@log'
 
 import { ApiWrapper } from './api'
 import { chatService } from './service'
+import { WsEstablishConnectionResponseSuccess } from '@chat/types/websocket'
 
 export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
   .use(log.into())
@@ -21,6 +22,7 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
       const { log, query, store, db } = ws.data
       const userId = store.accessTokenToUserIdMap.get(query.token)
       if (userId === undefined) {
+        log.warn({ wsId: ws.id }, 'Unauthorized WsClient connection attempt')
         ws.close(1008, 'Unauthorized')
         return
       }
@@ -29,6 +31,7 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
         .from(userProfiles)
         .where(eq(userProfiles.id, Number(userId)))
       if (!selectedUsersResult.length) {
+        log.warn({ userId, wsId: ws.id }, 'User not found for WsClient')
         ws.close(1008, 'User not found')
       }
       log.debug({ userId, wsId: ws.id }, 'WsClient opened')
@@ -37,6 +40,7 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
         ws.id,
         new ApiWrapper(ws, userId, selectedUsersResult[0].nickname ?? '', ''),
       )
+      ws.send(new WsEstablishConnectionResponseSuccess(ws.id))
     },
     close: (ws) => {
       const { log, store } = ws.data
@@ -53,11 +57,13 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
       const { log, store } = ws.data
       const userId = store.wsIdToUserIdMap.get(ws.id)
       if (!userId) {
+        log.warn({ wsId: ws.id }, 'Unauthorized WsClient message attempt')
         ws.close(1008, 'Unauthorized')
         return
       }
       const apiWrapper = store.wsIdToApiWrapperMap.get(ws.id)
       if (!apiWrapper) {
+        log.error({ userId, wsId: ws.id }, 'ApiWrapper not found for WsClient')
         ws.close(1008, 'ASR API not found')
         return
       }
@@ -83,6 +89,7 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
           break
         }
         default: {
+          log.warn({ userId, wsId: ws.id, message }, 'Invalid WsClient action')
           ws.close(1003, 'Invalid action')
           break
         }

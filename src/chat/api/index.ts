@@ -39,7 +39,6 @@ export class ApiWrapper {
     this._ttsApi = new TtsApi(this._wsClient.id, this._userId)
 
     this._asrApi.onFinish = async (recognized) => {
-      this._isReady = false
       if (this._outputText) {
         this._wsClient.send(
           new WsOutputTextCompleteResponseSuccess(
@@ -54,9 +53,31 @@ export class ApiWrapper {
 
       if (recognized.length < 2) {
         log.warn({ recognized }, '[WsAction] ASR text too short, ignored')
-        this._isReady = true
         return
       }
+
+      // Interrupt any ongoing DifyApi communication or TtsApi streaming
+      if (!this._isReady) {
+        log.info('[WsAction] ASR finished during active session, interrupting')
+        this._difyApi.abort()
+        this._ttsApi.abort()
+
+        if (!this._ttsApi.isConnected) {
+          // Re-establish TTS connection and session if needed
+          const ttsConnected = await this._ttsApi.connect()
+          if (!ttsConnected) {
+            log.error('[WsAction] Failed to connect to TTS API')
+            return
+          }
+          const sessionStarted = await this._ttsApi.startSession()
+          if (!sessionStarted) {
+            log.error('[WsAction] Failed to start TTS session')
+            return
+          }
+        }
+      }
+
+      this._isReady = false
 
       try {
         const fullAnswer = recognized.length
@@ -90,8 +111,9 @@ export class ApiWrapper {
           ),
         )
       } catch (error) {
-        log.error(error, '[WsAction] Error during ASR finish handling')
+        log.error(error, '[ApiWrapper] Error during ASR finish handling')
         this._wsClient.close(1011, 'Internal server error')
+        this._isReady = true
         return
       }
     }
@@ -165,11 +187,6 @@ export class ApiWrapper {
   }
 
   async inputAudioStream(buffer: string): Promise<boolean> {
-    if (!this._isReady) {
-      log.warn('[WsAction] Input audio stream ignored, not ready')
-      return false
-    }
-
     // 将音频数据加入队列
     this._audioQueue.push({ buffer, isComplete: false })
 
@@ -180,11 +197,6 @@ export class ApiWrapper {
   }
 
   inputAudioComplete(buffer: string): boolean {
-    if (!this._isReady) {
-      log.warn('[WsAction] Input audio complete ignored, not ready')
-      return false
-    }
-
     // 将完成音频数据加入队列
     this._audioQueue.push({ buffer, isComplete: true })
 
@@ -227,6 +239,7 @@ export class ApiWrapper {
         // 如果连接失败，清空队列并退出
         if (!this._isConnectionReady()) {
           this._audioQueue = []
+          log.error('[ApiWrapper] API connections not ready, closing WebSocket')
           this._wsClient.close(1008, 'API connection failed')
           break
         }
