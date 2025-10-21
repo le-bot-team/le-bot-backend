@@ -36,30 +36,6 @@ export class DifyApi {
       .format(currentDateTime)
       .split('/')
 
-    console.log({
-      inputs: {
-        name: this._nickname,
-        first_chat: isNew.toString(),
-        year,
-        month,
-        day,
-        weekday: new Intl.DateTimeFormat('zh-CN', {
-          timeZone,
-          weekday: 'short',
-        }).format(currentDateTime),
-        time: new Intl.DateTimeFormat('zh-CN', {
-          timeZone,
-          hour: 'numeric',
-          minute: 'numeric',
-          second: 'numeric',
-        }).format(currentDateTime),
-      },
-      query,
-      response_mode: 'streaming',
-      conversation_id: conversationId,
-      user: this._userId.toString(),
-    })
-
     const response = await Bun.fetch(
       `${process.env.DIFY_URL}/v1/chat-messages`,
       {

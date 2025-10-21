@@ -306,12 +306,26 @@ export class TtsApi {
 
   abort(): void {
     log.info('[TtsApi] Aborting TTS session')
-    // Immediately finish the session without waiting for response
-    this._ws?.terminate()
+    // 立即清理状态
+    this._connectionPromise = undefined
+    this._connectionId = undefined
+    this._startSessionPromise = undefined
+    this._sessionId = undefined
+    this._onSessionStarted = undefined
+    this._onSessionFinished = undefined
+
+    // 强制终止 WebSocket 连接
+    if (this._ws) {
+      this._ws.onopen = null
+      this._ws.onclose = null
+      this._ws.onmessage = null
+      this._ws.terminate()
+      this._ws = undefined
+    }
   }
 
   get isConnected(): boolean {
-    return !!(this._ws && this._connectionId?.length && this._sessionId?.length)
+    return !!(this._ws && this._ws.readyState === WebSocket.OPEN && this._connectionId?.length && this._sessionId?.length)
   }
 
   get isConnecting(): boolean {
@@ -323,6 +337,7 @@ export class TtsApi {
       return this._connectionPromise
     }
 
+    // 如果之前有连接但已断开，清理状态以便重新连接
     if (this._ws && this._connectionId?.length) {
       return true
     }
@@ -347,18 +362,20 @@ export class TtsApi {
       }
 
       this._ws.onclose = () => {
+        log.info('[TtsApi] WebSocket closed')
         this._connectionPromise = undefined
         this._connectionId = undefined
         this._startSessionPromise = undefined
         this._sessionId = undefined
         this._onSessionStarted = undefined
+        this._onSessionFinished = undefined
 
         if (this._ws) {
           this._ws.onopen = null
           this._ws.onclose = null
+          this._ws.onmessage = null
           this._ws = undefined
         }
-        resolve(false)
       }
 
       this._ws.onopen = () => {
@@ -405,6 +422,10 @@ export class TtsApi {
 
             case TtsEventType.sessionFinished:
               this._onSessionFinished?.()
+              break
+
+            case TtsEventType.ttsSentenceEnd:
+              // 句子音频发送完成，触发 onFinish 回调
               this.onFinish?.()
               break
 
@@ -421,7 +442,7 @@ export class TtsApi {
               break
 
             default:
-              // 忽略其他事件类型，如 ttsSentenceStart, ttsSentenceEnd
+              // 忽略其他事件类型，如 ttsSentenceStart
               break
           }
         } catch (e) {

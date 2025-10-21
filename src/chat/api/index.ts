@@ -65,9 +65,11 @@ export class ApiWrapper {
         log.info('[WsAction] ASR finished during active session, interrupting')
         this._difyApi.abort()
 
-        // 结束当前 TTS 会话并重新连接
-        await this._ttsApi.finishSession()
+        // 强制终止 TTS（不需要先 finishSession，因为是中断）
         this._ttsApi.abort()
+
+        // 等待 TTS 完全关闭后再重新连接
+        await new Promise((resolve) => setTimeout(resolve, 100))
 
         // 重新连接并启动 TTS 会话
         try {
@@ -77,9 +79,15 @@ export class ApiWrapper {
             log.info('[WsAction] TTS reconnected after interrupt')
           } else {
             log.error('[WsAction] Failed to reconnect TTS after interrupt')
+            this._wsClient.close(1011, 'TTS reconnection failed')
+            this._isAborting = false
+            return
           }
         } catch (error) {
           log.error(error, '[WsAction] Error reconnecting TTS after interrupt')
+          this._wsClient.close(1011, 'TTS reconnection error')
+          this._isAborting = false
+          return
         }
 
         this._isAborting = false
