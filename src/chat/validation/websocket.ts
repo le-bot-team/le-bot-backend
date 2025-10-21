@@ -19,6 +19,7 @@ export const wsUpdateConfigRequestValidator = t.Object({
       }),
     ),
     speechRate: t.Optional(t.Number({ minimum: -50, maximum: 100 })),
+    timezone: t.Optional(t.String()),
     voiceId: t.Optional(t.String()),
   }),
 })

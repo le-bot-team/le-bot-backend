@@ -53,16 +53,14 @@ export class WsEstablishConnectionResponseSuccess extends WsBaseResponseSuccess 
 export class WsUpdateConfigResponseSuccess extends WsBaseResponseSuccess {
   constructor(
     messageId: string,
-    private readonly conversationId: string,
+    private readonly config: WsUpdateConfigRequest['data'],
   ) {
     super(messageId, 'updateConfig')
   }
 
   override serialize() {
     return {
-      data: {
-        conversationId: this.conversationId,
-      },
+      data: this.config,
     }
   }
 }

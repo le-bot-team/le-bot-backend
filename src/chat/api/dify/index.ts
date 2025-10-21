@@ -21,29 +21,79 @@ export class DifyApi {
 
   async chatMessage(
     conversationId: string,
+    timeZone: string,
     query: string,
     isNew: boolean,
   ): Promise<string> {
     this._abortController = new AbortController()
-
-    const response = await Bun.fetch(`${process.env.DIFY_URL}/v1/chat-messages`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.DIFY_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        inputs: {
-          name: this._nickname,
-          first_chat: isNew.toString(),
-        },
-        query,
-        response_mode: 'streaming',
-        conversation_id: conversationId,
-        user: this._userId.toString(),
-      }),
-      signal: this._abortController.signal,
+    const currentDateTime = new Date()
+    const [year, month, day] = new Intl.DateTimeFormat('zh-CN', {
+      timeZone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
     })
+      .format(currentDateTime)
+      .split('/')
+
+    console.log({
+      inputs: {
+        name: this._nickname,
+        first_chat: isNew.toString(),
+        year,
+        month,
+        day,
+        weekday: new Intl.DateTimeFormat('zh-CN', {
+          timeZone,
+          weekday: 'short',
+        }).format(currentDateTime),
+        time: new Intl.DateTimeFormat('zh-CN', {
+          timeZone,
+          hour: 'numeric',
+          minute: 'numeric',
+          second: 'numeric',
+        }).format(currentDateTime),
+      },
+      query,
+      response_mode: 'streaming',
+      conversation_id: conversationId,
+      user: this._userId.toString(),
+    })
+
+    const response = await Bun.fetch(
+      `${process.env.DIFY_URL}/v1/chat-messages`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.DIFY_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: {
+            name: this._nickname,
+            first_chat: isNew.toString(),
+            year,
+            month,
+            day,
+            weekday: new Intl.DateTimeFormat('zh-CN', {
+              timeZone,
+              weekday: 'short',
+            }).format(currentDateTime),
+            time: new Intl.DateTimeFormat('zh-CN', {
+              timeZone,
+              hour: 'numeric',
+              minute: 'numeric',
+              second: 'numeric',
+            }).format(currentDateTime),
+          },
+          query,
+          response_mode: 'streaming',
+          conversation_id: conversationId,
+          user: this._userId.toString(),
+        }),
+        signal: this._abortController.signal,
+      },
+    )
 
     if (!response.ok || !response.body) {
       const errorBody = await response.json()

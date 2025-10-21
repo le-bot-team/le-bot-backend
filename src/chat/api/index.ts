@@ -14,19 +14,22 @@ import { log } from '@log'
 
 import { DifyApi } from './dify'
 import { AsrApi, TtsApi } from './openspeech'
-import { getResponseForUnrecognizedAsr } from './utils'
+import { getResponseForUnrecognizedAsr, isValidTimezone } from './utils'
 
 export class ApiWrapper {
   private readonly _asrApi: AsrApi
   private readonly _difyApi: DifyApi
   private readonly _ttsApi: TtsApi
 
+  private _audioQueue: { buffer: string; isComplete: boolean }[] = []
   private _conversationId = ''
+  private _isAborting = false
   private _isFirstAudio = true
   private _isReady = true
   private _outputText = false
-  private _audioQueue: { buffer: string; isComplete: boolean }[] = []
   private _processingQueue = false
+  private _isReconnecting = false
+  private _timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   constructor(
     private readonly _wsClient: ElysiaWS,
@@ -58,23 +61,28 @@ export class ApiWrapper {
 
       // Interrupt any ongoing DifyApi communication or TtsApi streaming
       if (!this._isReady) {
+        this._isAborting = true
         log.info('[WsAction] ASR finished during active session, interrupting')
         this._difyApi.abort()
+
+        // 结束当前 TTS 会话并重新连接
+        await this._ttsApi.finishSession()
         this._ttsApi.abort()
 
-        if (!this._ttsApi.isConnected) {
-          // Re-establish TTS connection and session if needed
+        // 重新连接并启动 TTS 会话
+        try {
           const ttsConnected = await this._ttsApi.connect()
-          if (!ttsConnected) {
-            log.error('[WsAction] Failed to connect to TTS API')
-            return
+          if (ttsConnected) {
+            await this._ttsApi.startSession()
+            log.info('[WsAction] TTS reconnected after interrupt')
+          } else {
+            log.error('[WsAction] Failed to reconnect TTS after interrupt')
           }
-          const sessionStarted = await this._ttsApi.startSession()
-          if (!sessionStarted) {
-            log.error('[WsAction] Failed to start TTS session')
-            return
-          }
+        } catch (error) {
+          log.error(error, '[WsAction] Error reconnecting TTS after interrupt')
         }
+
+        this._isAborting = false
       }
 
       this._isReady = false
@@ -83,6 +91,7 @@ export class ApiWrapper {
         const fullAnswer = recognized.length
           ? await this._difyApi.chatMessage(
               this._conversationId,
+              this._timeZone,
               recognized,
               !this._conversationId.length,
             )
@@ -99,8 +108,10 @@ export class ApiWrapper {
           )
         }
 
+        // 发送 TTS 文本，但不结束会话，保持连接以便下次使用
         this._ttsApi.sendText(fullAnswer)
-        await this._ttsApi.finishSession()
+        // 注意：不再调用 finishSession()，让会话保持活跃状态
+
         this._wsClient.send(
           new WsChatCompleteResponseSuccess(
             this._wsClient.id,
@@ -176,11 +187,22 @@ export class ApiWrapper {
   }
 
   async updateConfig(request: WsUpdateConfigRequest): Promise<boolean> {
-    this._conversationId = request.data.conversationId ?? ''
-    this._outputText = request.data.outputText ?? false
+    if (request.data.conversationId) {
+      this._conversationId = request.data.conversationId
+    }
+    if (request.data.outputText) {
+      this._outputText = request.data.outputText
+    }
+    if (request.data.timezone && isValidTimezone(request.data.timezone)) {
+      this._timeZone = request.data.timezone
+    }
     this._wsClient.send(
       JSON.stringify(
-        new WsUpdateConfigResponseSuccess(request.id, this._conversationId),
+        new WsUpdateConfigResponseSuccess(request.id, {
+          conversationId: this._conversationId,
+          timezone: this._timeZone,
+          outputText: this._outputText,
+        }),
       ),
     )
     return true
@@ -232,16 +254,21 @@ export class ApiWrapper {
         }
 
         // 等待连接完成
-        while (this._isConnecting()) {
+        while (this._isConnecting() || this._isAborting) {
           await new Promise((resolve) => setTimeout(resolve, 10))
         }
 
-        // 如果连接失败，清空队列并退出
-        if (!this._isConnectionReady()) {
+        // 如果连接失败且不是在重连过程中，清空队列并退出
+        if (!this._isConnectionReady() && !this._isReconnecting) {
           this._audioQueue = []
           log.error('[ApiWrapper] API connections not ready, closing WebSocket')
           this._wsClient.close(1008, 'API connection failed')
           break
+        }
+
+        // 如果正在重连，跳过当前音频数据，继续处理队列
+        if (this._isReconnecting) {
+          continue
         }
 
         // 发送音频数据
