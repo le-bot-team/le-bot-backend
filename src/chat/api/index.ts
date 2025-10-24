@@ -59,40 +59,6 @@ export class ApiWrapper {
         return
       }
 
-      // Interrupt any ongoing DifyApi communication or TtsApi streaming
-      if (!this._isReady) {
-        this._isAborting = true
-        log.info('[WsAction] ASR finished during active session, interrupting')
-        this._difyApi.abort()
-
-        // 强制终止 TTS（不需要先 finishSession，因为是中断）
-        this._ttsApi.abort()
-
-        // 等待 TTS 完全关闭后再重新连接
-        await new Promise((resolve) => setTimeout(resolve, 100))
-
-        // 重新连接并启动 TTS 会话
-        try {
-          const ttsConnected = await this._ttsApi.connect()
-          if (ttsConnected) {
-            await this._ttsApi.startSession()
-            log.info('[WsAction] TTS reconnected after interrupt')
-          } else {
-            log.error('[WsAction] Failed to reconnect TTS after interrupt')
-            this._wsClient.close(1011, 'TTS reconnection failed')
-            this._isAborting = false
-            return
-          }
-        } catch (error) {
-          log.error(error, '[WsAction] Error reconnecting TTS after interrupt')
-          this._wsClient.close(1011, 'TTS reconnection error')
-          this._isAborting = false
-          return
-        }
-
-        this._isAborting = false
-      }
-
       this._isReady = false
 
       try {
@@ -136,7 +102,7 @@ export class ApiWrapper {
         return
       }
     }
-    this._asrApi.onUpdate = (text) => {
+    this._asrApi.onUpdate = async (text) => {
       if (this._outputText) {
         this._wsClient.send(
           new WsOutputTextStreamResponseSuccess(
@@ -147,6 +113,44 @@ export class ApiWrapper {
             text,
           ),
         )
+      }
+
+      if (text.length < 2) {
+        return
+      }
+
+      // Interrupt any ongoing DifyApi communication or TtsApi streaming
+      if (!this._isReady) {
+        this._isAborting = true
+        log.info('[WsAction] ASR finished during active session, interrupting')
+        this._difyApi.abort()
+
+        // 强制终止 TTS（不需要先 finishSession，因为是中断）
+        this._ttsApi.abort()
+
+        // 等待 TTS 完全关闭后再重新连接
+        await new Promise((resolve) => setTimeout(resolve, 100))
+
+        // 重新连接并启动 TTS 会话
+        try {
+          const ttsConnected = await this._ttsApi.connect()
+          if (ttsConnected) {
+            await this._ttsApi.startSession()
+            log.info('[WsAction] TTS reconnected after interrupt')
+          } else {
+            log.error('[WsAction] Failed to reconnect TTS after interrupt')
+            this._wsClient.close(1011, 'TTS reconnection failed')
+            this._isAborting = false
+            return
+          }
+        } catch (error) {
+          log.error(error, '[WsAction] Error reconnecting TTS after interrupt')
+          this._wsClient.close(1011, 'TTS reconnection error')
+          this._isAborting = false
+          return
+        }
+
+        this._isAborting = false
       }
     }
     this._difyApi.onConversationId = (conversationId) => {
