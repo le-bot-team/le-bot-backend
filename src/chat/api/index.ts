@@ -96,6 +96,10 @@ export class ApiWrapper {
           ),
         )
       } catch (error) {
+        if ((error as Error).name === 'AbortError') {
+          log.info('[ApiWrapper] DifyApi chatMessage aborted')
+          return
+        }
         log.error(error, '[ApiWrapper] Error during ASR finish handling')
         this._wsClient.close(1011, 'Internal server error')
         this._isReady = true

@@ -69,6 +69,13 @@ export class DifyApi {
         }),
         signal: this._abortController.signal,
       },
+    ).catch((error) =>
+      error.name === 'AbortError'
+        ? new Response(null, {
+            status: 499,
+            statusText: 'Client Closed Request',
+          })
+        : Promise.reject(error),
     )
 
     if (!response.ok || !response.body) {
