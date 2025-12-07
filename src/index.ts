@@ -30,6 +30,7 @@ const app = new Elysia()
       SMTP_HOST: t.String({ description: 'SMTP server host' }),
       SMTP_PASSWORD: t.String({ description: 'SMTP server password' }),
       SMTP_USERNAME: t.String({ description: 'SMTP server username' }),
+      VPR_URL: t.String({ description: 'Voiceprint Recognition service URL' }),
     }),
   )
   .use(cors())

@@ -21,16 +21,10 @@ import {
 export class VprApi {
   private readonly _userId: string
   private _defaultThreshold: number
-  private readonly _isEnabled: boolean
 
   constructor(userId: bigint, threshold = 0.6) {
     this._userId = userId.toString()
     this._defaultThreshold = threshold
-    this._isEnabled = process.env.VPR_ENABLED === 'true'
-
-    if (!this._isEnabled) {
-      log.warn('VPR', 'VPR service is disabled')
-    }
   }
 
   /**
@@ -45,12 +39,6 @@ export class VprApi {
     personName: string,
     relationship = '朋友',
   ): Promise<VprRegisterResponse | VprErrorResponse> {
-    if (!this._isEnabled) {
-      return {
-        success: false,
-        message: 'VPR service is disabled',
-      }
-    }
 
     log.info('VPR', `Registering voice for ${personName} (${relationship}) - User: ${this._userId}`)
 
@@ -78,12 +66,6 @@ export class VprApi {
     audioFile: File | Blob,
     threshold?: number,
   ): Promise<VprRecognizeResponse | VprErrorResponse> {
-    if (!this._isEnabled) {
-      return {
-        success: false,
-        message: 'VPR service is disabled',
-      }
-    }
 
     const recognitionThreshold = threshold ?? this._defaultThreshold
 
@@ -134,22 +116,9 @@ export class VprApi {
   }
 
   /**
-   * Check if VPR is enabled
-   */
-  get isEnabled(): boolean {
-    return this._isEnabled
-  }
-
-  /**
    * Get all persons registered for this user
    */
   async getPersons() {
-    if (!this._isEnabled) {
-      return {
-        success: false,
-        message: 'VPR service is disabled',
-      }
-    }
 
     return getUserPersons(this._userId)
   }
@@ -158,12 +127,6 @@ export class VprApi {
    * Get statistics for this user
    */
   async getStats() {
-    if (!this._isEnabled) {
-      return {
-        success: false,
-        message: 'VPR service is disabled',
-      }
-    }
 
     return getUserStats(this._userId)
   }
@@ -173,12 +136,6 @@ export class VprApi {
    * @param personId Person ID to delete
    */
   async deletePerson(personId: string) {
-    if (!this._isEnabled) {
-      return {
-        success: false,
-        message: 'VPR service is disabled',
-      }
-    }
 
     return deletePerson(this._userId, personId)
   }
@@ -187,12 +144,6 @@ export class VprApi {
    * Delete all data for this user (use with extreme caution!)
    */
   async deleteAllData() {
-    if (!this._isEnabled) {
-      return {
-        success: false,
-        message: 'VPR service is disabled',
-      }
-    }
 
     log.warn('VPR', `Deleting all data for user ${this._userId}`)
     return deleteUser(this._userId)

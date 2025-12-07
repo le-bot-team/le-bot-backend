@@ -14,9 +14,6 @@ import type {
   VprUsersResponse,
 } from './types'
 
-const VPR_BASE_URL =
-  process.env.VPR_BASE_URL || 'http://cafuuchino.studio26f.org:22481/api/v4/vpr'
-
 /**
  * Register user audio with voiceprint features
  * @param file Audio file (supported formats: .wav, .mp3, .flac, .m4a, .ogg, .aac)
@@ -37,7 +34,7 @@ export async function registerVoice(
     formData.append('person_name', personName)
     formData.append('relationship', relationship)
 
-    const response = await fetch(`${VPR_BASE_URL}/register`, {
+    const response = await fetch(`${process.env.VPR_BASE_URL}/register`, {
       method: 'POST',
       body: formData,
     })
@@ -84,7 +81,7 @@ export async function recognizeVoice(
     }
     formData.append('threshold', threshold.toString())
 
-    const response = await fetch(`${VPR_BASE_URL}/recognize`, {
+    const response = await fetch(`${process.env.VPR_BASE_URL}/recognize`, {
       method: 'POST',
       body: formData,
     })
@@ -118,7 +115,7 @@ export async function recognizeVoice(
  */
 export async function getUsers(): Promise<VprUsersResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${VPR_BASE_URL}/users`, {
+    const response = await fetch(`${process.env.VPR_BASE_URL}/users`, {
       method: 'GET',
     })
 
@@ -152,7 +149,7 @@ export async function getUserPersons(
   userId: string,
 ): Promise<VprPersonsResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${VPR_BASE_URL}/users/${userId}/persons`, {
+    const response = await fetch(`${process.env.VPR_BASE_URL}/users/${userId}/persons`, {
       method: 'GET',
     })
 
@@ -186,7 +183,7 @@ export async function getUserStats(
   userId: string,
 ): Promise<VprUserStatsResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${VPR_BASE_URL}/stats/${userId}`, {
+    const response = await fetch(`${process.env.VPR_BASE_URL}/stats/${userId}`, {
       method: 'GET',
     })
 
@@ -217,7 +214,7 @@ export async function getUserStats(
  */
 export async function getGlobalStats(): Promise<VprGlobalStatsResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${VPR_BASE_URL}/stats`, {
+    const response = await fetch(`${process.env.VPR_BASE_URL}/stats`, {
       method: 'GET',
     })
 
@@ -248,7 +245,7 @@ export async function getGlobalStats(): Promise<VprGlobalStatsResponse | VprErro
  */
 export async function getStorageInfo(): Promise<VprStorageInfoResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${VPR_BASE_URL}/storage/info`, {
+    const response = await fetch(`${process.env.VPR_BASE_URL}/storage/info`, {
       method: 'GET',
     })
 
@@ -279,7 +276,7 @@ export async function getStorageInfo(): Promise<VprStorageInfoResponse | VprErro
  */
 export async function clearCache(): Promise<VprCacheClearResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${VPR_BASE_URL}/cache/clear`, {
+    const response = await fetch(`${process.env.VPR_BASE_URL}/cache/clear`, {
       method: 'POST',
     })
 
@@ -312,7 +309,7 @@ export async function clearCache(): Promise<VprCacheClearResponse | VprErrorResp
  */
 export async function deleteUser(userId: string): Promise<VprDeleteUserResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${VPR_BASE_URL}/users/${userId}`, {
+    const response = await fetch(`${process.env.VPR_BASE_URL}/users/${userId}`, {
       method: 'DELETE',
     })
 
@@ -349,7 +346,7 @@ export async function deletePerson(
   personId: string,
 ): Promise<VprDeletePersonResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${VPR_BASE_URL}/users/${userId}/persons/${personId}`, {
+    const response = await fetch(`${process.env.VPR_BASE_URL}/users/${userId}/persons/${personId}`, {
       method: 'DELETE',
     })
 
