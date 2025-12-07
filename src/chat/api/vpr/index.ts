@@ -1,0 +1,218 @@
+import { log } from '@log'
+
+import type {
+  VprErrorResponse,
+  VprRecognizeResponse,
+  VprRegisterResponse,
+} from './types'
+import {
+  clearCache,
+  deletePerson,
+  deleteUser,
+  getGlobalStats,
+  getStorageInfo,
+  getUserPersons,
+  getUserStats,
+  getUsers,
+  recognizeVoice,
+  registerVoice,
+} from './utils'
+
+export class VprApi {
+  private readonly _userId: string
+  private _defaultThreshold: number
+  private readonly _isEnabled: boolean
+
+  constructor(userId: bigint, threshold = 0.6) {
+    this._userId = userId.toString()
+    this._defaultThreshold = threshold
+    this._isEnabled = process.env.VPR_ENABLED === 'true'
+
+    if (!this._isEnabled) {
+      log.warn('VPR', 'VPR service is disabled')
+    }
+  }
+
+  /**
+   * Register a voiceprint for the current user or their contact
+   * @param audioFile Audio file (File or Blob)
+   * @param personName Name of the person
+   * @param relationship Relationship to user (default: "朋友")
+   * @returns Registration result
+   */
+  async register(
+    audioFile: File | Blob,
+    personName: string,
+    relationship = '朋友',
+  ): Promise<VprRegisterResponse | VprErrorResponse> {
+    if (!this._isEnabled) {
+      return {
+        success: false,
+        message: 'VPR service is disabled',
+      }
+    }
+
+    log.info('VPR', `Registering voice for ${personName} (${relationship}) - User: ${this._userId}`)
+
+    const result = await registerVoice(audioFile, this._userId, personName, relationship)
+
+    if (result.success) {
+      log.info(
+        'VPR',
+        `Successfully registered ${personName}: ${(result as VprRegisterResponse).voice_id || 'N/A'}`,
+      )
+    } else {
+      log.error('VPR', `Failed to register ${personName}: ${result.message}`)
+    }
+
+    return result
+  }
+
+  /**
+   * Recognize a person from audio
+   * @param audioFile Audio file to recognize
+   * @param threshold Custom threshold (optional, uses default if not provided)
+   * @returns Recognition result
+   */
+  async recognize(
+    audioFile: File | Blob,
+    threshold?: number,
+  ): Promise<VprRecognizeResponse | VprErrorResponse> {
+    if (!this._isEnabled) {
+      return {
+        success: false,
+        message: 'VPR service is disabled',
+      }
+    }
+
+    const recognitionThreshold = threshold ?? this._defaultThreshold
+
+    log.info(
+      'VPR',
+      `Recognizing voice for user ${this._userId} with threshold ${recognitionThreshold}`,
+    )
+
+    const result = await recognizeVoice(audioFile, this._userId, recognitionThreshold)
+
+    if (result.success && 'person_name' in result) {
+      const recognizeResult = result as VprRecognizeResponse
+      log.info(
+        'VPR',
+        `Recognition successful: ${recognizeResult.person_name} (confidence: ${recognizeResult.confidence?.toFixed(2) || 'N/A'}, similarity: ${recognizeResult.similarity?.toFixed(2) || 'N/A'})`,
+      )
+    } else {
+      log.warn('VPR', `Recognition failed or no match: ${result.message}`)
+    }
+
+    return result
+  }
+
+  /**
+   * Get recognition threshold
+   */
+  get threshold(): number {
+    return this._defaultThreshold
+  }
+
+  /**
+   * Set recognition threshold
+   */
+  set threshold(value: number) {
+    if (value < 0 || value > 1) {
+      log.error('VPR', `Invalid threshold value: ${value}. Must be between 0.0 and 1.0`)
+      return
+    }
+    this._defaultThreshold = value
+    log.info('VPR', `Threshold updated to ${value}`)
+  }
+
+  /**
+   * Get user ID
+   */
+  get userId(): string {
+    return this._userId
+  }
+
+  /**
+   * Check if VPR is enabled
+   */
+  get isEnabled(): boolean {
+    return this._isEnabled
+  }
+
+  /**
+   * Get all persons registered for this user
+   */
+  async getPersons() {
+    if (!this._isEnabled) {
+      return {
+        success: false,
+        message: 'VPR service is disabled',
+      }
+    }
+
+    return getUserPersons(this._userId)
+  }
+
+  /**
+   * Get statistics for this user
+   */
+  async getStats() {
+    if (!this._isEnabled) {
+      return {
+        success: false,
+        message: 'VPR service is disabled',
+      }
+    }
+
+    return getUserStats(this._userId)
+  }
+
+  /**
+   * Delete a person from this user
+   * @param personId Person ID to delete
+   */
+  async deletePerson(personId: string) {
+    if (!this._isEnabled) {
+      return {
+        success: false,
+        message: 'VPR service is disabled',
+      }
+    }
+
+    return deletePerson(this._userId, personId)
+  }
+
+  /**
+   * Delete all data for this user (use with extreme caution!)
+   */
+  async deleteAllData() {
+    if (!this._isEnabled) {
+      return {
+        success: false,
+        message: 'VPR service is disabled',
+      }
+    }
+
+    log.warn('VPR', `Deleting all data for user ${this._userId}`)
+    return deleteUser(this._userId)
+  }
+}
+
+// Export utility functions for advanced usage
+export {
+  clearCache,
+  deleteUser,
+  deletePerson,
+  getGlobalStats,
+  getStorageInfo,
+  getUsers,
+  getUserPersons,
+  getUserStats,
+  recognizeVoice,
+  registerVoice,
+}
+
+// Export types
+export type * from './types'
+
