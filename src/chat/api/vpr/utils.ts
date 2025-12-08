@@ -1,6 +1,6 @@
 import { log } from '@log'
 
-import type {
+import {
   VprCacheClearResponse,
   VprDeletePersonResponse,
   VprDeleteUserResponse,
@@ -12,6 +12,7 @@ import type {
   VprStorageInfoResponse,
   VprUserStatsResponse,
   VprUsersResponse,
+  VprRelationship,
 } from './types'
 
 /**
@@ -19,31 +20,38 @@ import type {
  * @param file Audio file (supported formats: .wav, .mp3, .flac, .m4a, .ogg, .aac)
  * @param userId User unique identifier
  * @param personName Person name
- * @param relationship Relationship with user (default: "朋友")
+ * @param relationship Relationship with user (default: "friend")
  */
 export async function registerVoice(
   file: File | Blob,
   userId: string,
   personName: string,
-  relationship = '朋友',
+  relationship?: VprRelationship,
 ): Promise<VprRegisterResponse | VprErrorResponse> {
   try {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('user_id', userId)
     formData.append('person_name', personName)
-    formData.append('relationship', relationship)
+    if (relationship) {
+      formData.append('relationship', relationship)
+    }
 
     const response = await fetch(`${process.env.VPR_BASE_URL}/register`, {
       method: 'POST',
       body: formData,
     })
 
-    const data = (await response.json()) as VprRegisterResponse | VprErrorResponse
+    const data = (await response.json()) as
+      | VprRegisterResponse
+      | VprErrorResponse
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
-      log.error('VPR', `Failed to register voice: ${errorData.message || response.statusText}`)
+      log.error(
+        'VPR',
+        `Failed to register voice: ${errorData.message || response.statusText}`,
+      )
       return {
         success: false,
         message: errorData.message || response.statusText,
@@ -51,7 +59,10 @@ export async function registerVoice(
       }
     }
 
-    log.info('VPR', `Successfully registered voice for ${personName} (${userId})`)
+    log.info(
+      'VPR',
+      `Successfully registered voice for ${personName} (${userId})`,
+    )
     return data
   } catch (error) {
     log.error('VPR', `Error registering voice: ${error}`)
@@ -86,11 +97,16 @@ export async function recognizeVoice(
       body: formData,
     })
 
-    const data = (await response.json()) as VprRecognizeResponse | VprErrorResponse
+    const data = (await response.json()) as
+      | VprRecognizeResponse
+      | VprErrorResponse
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
-      log.error('VPR', `Failed to recognize voice: ${errorData.message || response.statusText}`)
+      log.error(
+        'VPR',
+        `Failed to recognize voice: ${errorData.message || response.statusText}`,
+      )
       return {
         success: false,
         message: errorData.message || response.statusText,
@@ -123,7 +139,10 @@ export async function getUsers(): Promise<VprUsersResponse | VprErrorResponse> {
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
-      log.error('VPR', `Failed to get users: ${errorData.message || response.statusText}`)
+      log.error(
+        'VPR',
+        `Failed to get users: ${errorData.message || response.statusText}`,
+      )
       return {
         success: false,
         message: errorData.message || response.statusText,
@@ -149,15 +168,23 @@ export async function getUserPersons(
   userId: string,
 ): Promise<VprPersonsResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${process.env.VPR_BASE_URL}/users/${userId}/persons`, {
-      method: 'GET',
-    })
+    const response = await fetch(
+      `${process.env.VPR_BASE_URL}/users/${userId}/persons`,
+      {
+        method: 'GET',
+      },
+    )
 
-    const data = (await response.json()) as VprPersonsResponse | VprErrorResponse
+    const data = (await response.json()) as
+      | VprPersonsResponse
+      | VprErrorResponse
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
-      log.error('VPR', `Failed to get user persons: ${errorData.message || response.statusText}`)
+      log.error(
+        'VPR',
+        `Failed to get user persons: ${errorData.message || response.statusText}`,
+      )
       return {
         success: false,
         message: errorData.message || response.statusText,
@@ -183,15 +210,23 @@ export async function getUserStats(
   userId: string,
 ): Promise<VprUserStatsResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${process.env.VPR_BASE_URL}/stats/${userId}`, {
-      method: 'GET',
-    })
+    const response = await fetch(
+      `${process.env.VPR_BASE_URL}/stats/${userId}`,
+      {
+        method: 'GET',
+      },
+    )
 
-    const data = (await response.json()) as VprUserStatsResponse | VprErrorResponse
+    const data = (await response.json()) as
+      | VprUserStatsResponse
+      | VprErrorResponse
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
-      log.error('VPR', `Failed to get user stats: ${errorData.message || response.statusText}`)
+      log.error(
+        'VPR',
+        `Failed to get user stats: ${errorData.message || response.statusText}`,
+      )
       return {
         success: false,
         message: errorData.message || response.statusText,
@@ -212,17 +247,24 @@ export async function getUserStats(
 /**
  * Get global statistics
  */
-export async function getGlobalStats(): Promise<VprGlobalStatsResponse | VprErrorResponse> {
+export async function getGlobalStats(): Promise<
+  VprGlobalStatsResponse | VprErrorResponse
+> {
   try {
     const response = await fetch(`${process.env.VPR_BASE_URL}/stats`, {
       method: 'GET',
     })
 
-    const data = (await response.json()) as VprGlobalStatsResponse | VprErrorResponse
+    const data = (await response.json()) as
+      | VprGlobalStatsResponse
+      | VprErrorResponse
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
-      log.error('VPR', `Failed to get global stats: ${errorData.message || response.statusText}`)
+      log.error(
+        'VPR',
+        `Failed to get global stats: ${errorData.message || response.statusText}`,
+      )
       return {
         success: false,
         message: errorData.message || response.statusText,
@@ -243,17 +285,24 @@ export async function getGlobalStats(): Promise<VprGlobalStatsResponse | VprErro
 /**
  * Get storage information
  */
-export async function getStorageInfo(): Promise<VprStorageInfoResponse | VprErrorResponse> {
+export async function getStorageInfo(): Promise<
+  VprStorageInfoResponse | VprErrorResponse
+> {
   try {
     const response = await fetch(`${process.env.VPR_BASE_URL}/storage/info`, {
       method: 'GET',
     })
 
-    const data = (await response.json()) as VprStorageInfoResponse | VprErrorResponse
+    const data = (await response.json()) as
+      | VprStorageInfoResponse
+      | VprErrorResponse
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
-      log.error('VPR', `Failed to get storage info: ${errorData.message || response.statusText}`)
+      log.error(
+        'VPR',
+        `Failed to get storage info: ${errorData.message || response.statusText}`,
+      )
       return {
         success: false,
         message: errorData.message || response.statusText,
@@ -274,17 +323,24 @@ export async function getStorageInfo(): Promise<VprStorageInfoResponse | VprErro
 /**
  * Clear memory cache
  */
-export async function clearCache(): Promise<VprCacheClearResponse | VprErrorResponse> {
+export async function clearCache(): Promise<
+  VprCacheClearResponse | VprErrorResponse
+> {
   try {
     const response = await fetch(`${process.env.VPR_BASE_URL}/cache/clear`, {
       method: 'POST',
     })
 
-    const data = (await response.json()) as VprCacheClearResponse | VprErrorResponse
+    const data = (await response.json()) as
+      | VprCacheClearResponse
+      | VprErrorResponse
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
-      log.error('VPR', `Failed to clear cache: ${errorData.message || response.statusText}`)
+      log.error(
+        'VPR',
+        `Failed to clear cache: ${errorData.message || response.statusText}`,
+      )
       return {
         success: false,
         message: errorData.message || response.statusText,
@@ -307,17 +363,27 @@ export async function clearCache(): Promise<VprCacheClearResponse | VprErrorResp
  * Delete user and all associated data (use with caution)
  * @param userId User ID
  */
-export async function deleteUser(userId: string): Promise<VprDeleteUserResponse | VprErrorResponse> {
+export async function deleteUser(
+  userId: string,
+): Promise<VprDeleteUserResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${process.env.VPR_BASE_URL}/users/${userId}`, {
-      method: 'DELETE',
-    })
+    const response = await fetch(
+      `${process.env.VPR_BASE_URL}/users/${userId}`,
+      {
+        method: 'DELETE',
+      },
+    )
 
-    const data = (await response.json()) as VprDeleteUserResponse | VprErrorResponse
+    const data = (await response.json()) as
+      | VprDeleteUserResponse
+      | VprErrorResponse
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
-      log.error('VPR', `Failed to delete user: ${errorData.message || response.statusText}`)
+      log.error(
+        'VPR',
+        `Failed to delete user: ${errorData.message || response.statusText}`,
+      )
       return {
         success: false,
         message: errorData.message || response.statusText,
@@ -346,15 +412,23 @@ export async function deletePerson(
   personId: string,
 ): Promise<VprDeletePersonResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${process.env.VPR_BASE_URL}/users/${userId}/persons/${personId}`, {
-      method: 'DELETE',
-    })
+    const response = await fetch(
+      `${process.env.VPR_BASE_URL}/users/${userId}/persons/${personId}`,
+      {
+        method: 'DELETE',
+      },
+    )
 
-    const data = (await response.json()) as VprDeletePersonResponse | VprErrorResponse
+    const data = (await response.json()) as
+      | VprDeletePersonResponse
+      | VprErrorResponse
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
-      log.error('VPR', `Failed to delete person: ${errorData.message || response.statusText}`)
+      log.error(
+        'VPR',
+        `Failed to delete person: ${errorData.message || response.statusText}`,
+      )
       return {
         success: false,
         message: errorData.message || response.statusText,
@@ -372,4 +446,3 @@ export async function deletePerson(
     }
   }
 }
-

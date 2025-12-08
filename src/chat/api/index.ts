@@ -15,20 +15,23 @@ import { log } from '@log'
 import { DifyApi } from './dify'
 import { AsrApi, TtsApi } from './openspeech'
 import { getResponseForUnrecognizedAsr, isValidTimezone } from './utils'
+import { VprApi } from './vpr'
 
 export class ApiWrapper {
   private readonly _asrApi: AsrApi
   private readonly _difyApi: DifyApi
   private readonly _ttsApi: TtsApi
+  private readonly _vprApi: VprApi
 
   private _audioQueue: { buffer: string; isComplete: boolean }[] = []
+  private _audioBufferForVpr: string[] = []
   private _conversationId = ''
   private _isAborting = false
   private _isFirstAudio = true
+  private _isProcessingAudioQueue = false
   private _isReady = true
-  private _outputText = false
-  private _processingQueue = false
   private _isReconnecting = false
+  private _outputText = false
   private _timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   constructor(
@@ -40,6 +43,7 @@ export class ApiWrapper {
     this._asrApi = new AsrApi(this._wsClient.id, this._userId, this._deviceId)
     this._difyApi = new DifyApi(this._userId, this._nickname)
     this._ttsApi = new TtsApi(this._wsClient.id, this._userId)
+    this._vprApi = new VprApi(this._userId, 0.6)
 
     this._asrApi.onFinish = async (recognized) => {
       if (this._outputText) {
@@ -57,6 +61,10 @@ export class ApiWrapper {
       if (recognized.length < 2) {
         log.warn({ recognized }, '[WsAction] ASR text too short, ignored')
         return
+      }
+
+      if (!(await this._handleVoicePrintRecognition())) {
+        log.info('[VPR] Voice print recognition failed or no match found')
       }
 
       this._isReady = false
@@ -199,7 +207,8 @@ export class ApiWrapper {
     this._asrApi.close()
     this._ttsApi.close()
     this._audioQueue = []
-    this._processingQueue = false
+    this._audioBufferForVpr = []
+    this._isProcessingAudioQueue = false
   }
 
   async updateConfig(request: WsUpdateConfigRequest): Promise<boolean> {
@@ -247,11 +256,11 @@ export class ApiWrapper {
   }
 
   private async _processAudioQueue(): Promise<void> {
-    if (this._processingQueue) {
+    if (this._isProcessingAudioQueue) {
       return
     }
 
-    this._processingQueue = true
+    this._isProcessingAudioQueue = true
 
     try {
       while (this._audioQueue.length > 0) {
@@ -282,10 +291,13 @@ export class ApiWrapper {
           break
         }
 
-        // 如果正在重连，跳过当前音频数据，继续处理队列
+        // 如果正在重连,跳过当前音频数据，继续处理队列
         if (this._isReconnecting) {
           continue
         }
+
+        // 缓存音频数据用于 VPR
+        this._audioBufferForVpr.push(audioData.buffer)
 
         // 发送音频数据
         const sendResult = audioData.isComplete
@@ -300,7 +312,7 @@ export class ApiWrapper {
     } catch (error) {
       log.error(error, '[WsAction] Error in audio queue processing')
     } finally {
-      this._processingQueue = false
+      this._isProcessingAudioQueue = false
     }
   }
 
@@ -310,6 +322,76 @@ export class ApiWrapper {
 
   private _isConnecting(): boolean {
     return this._asrApi.isConnecting || this._ttsApi.isConnecting
+  }
+
+  private async _handleVoicePrintRecognition(): Promise<boolean> {
+    // 如果没有缓存的音频数据，直接返回
+    if (this._audioBufferForVpr.length === 0) {
+      log.warn('[VPR] No audio data buffered for voice print recognition')
+      return false
+    }
+
+    let isSuccess = false
+    try {
+      // 合并所有音频数据
+      const combinedAudioBase64 = this._audioBufferForVpr.join('')
+
+      // 将 base64 转换为 Uint8Array
+      const audioData = Uint8Array.fromBase64(combinedAudioBase64)
+
+      // 创建 Blob (假设是 PCM 格式)
+      const audioBlob = new Blob([audioData], { type: 'audio/wav' })
+
+      log.info('[VPR] Starting voice recognition...')
+
+      // 调用 VPR recognize 接口
+      const recognizeResult = await this._vprApi.recognize(audioBlob)
+
+      if (recognizeResult.success && 'person_name' in recognizeResult) {
+        // 识别成功
+        log.info(
+          '[VPR]',
+          `Voice recognized: ${recognizeResult.person_name} (confidence: ${recognizeResult.confidence?.toFixed(2)})`,
+        )
+        isSuccess = true
+      } else {
+        // 没有识别到人物
+        log.info('[VPR]', `No person recognized: ${recognizeResult.message}`)
+
+        if (this._isFirstAudio) {
+          // 如果是第一次音频且未识别到，进行注册
+          log.info(
+            '[VPR]',
+            'First audio detected, registering voice as user...',
+          )
+
+          const registerResult = await this._vprApi.register(
+            audioBlob,
+            this._nickname || '用户',
+            '本人',
+          )
+
+          if (registerResult.success) {
+            log.info('[VPR]', 'Voice registered successfully')
+            isSuccess = true
+          } else {
+            log.error(
+              '[VPR]',
+              `Voice registration failed: ${registerResult.message}`,
+            )
+          }
+        } else {
+          // 如果不是第一次音频，直接返回
+          log.info('[VPR]', 'Not first audio, skipping registration')
+        }
+      }
+    } catch (error) {
+      log.error('[VPR]', `Error during voice print recognition: ${error}`)
+    } finally {
+      // 清空音频缓存，准备下次识别
+      this._audioBufferForVpr = []
+    }
+    return isSuccess
   }
 
   private async _establishConnections(): Promise<void> {

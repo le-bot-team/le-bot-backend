@@ -1,11 +1,6 @@
 // VPR API Types based on the API documentation
 
-export interface VprRegisterRequest {
-  file: File | Blob
-  user_id: string
-  person_name: string
-  relationship?: string
-}
+export type VprRelationship = 'self' | 'family' | 'friend' | 'colleague' | 'other'
 
 export interface VprRegisterResponse {
   success: boolean

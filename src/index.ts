@@ -18,11 +18,6 @@ const app = new Elysia()
         maxLength: 32,
         description: 'Access token for the bot',
       }),
-      ARK_API_KEY: t.String({
-        minLength: 36,
-        maxLength: 36,
-        description: 'Ark API key for ASR services',
-      }),
       APP_ID: t.String({ minLength: 1, description: 'App ID for the bot' }),
       DATABASE_URL: t.String({ description: 'Database connection URL' }),
       DIFY_API_KEY: t.String({ description: 'Dify API key for AI services' }),

@@ -1,9 +1,10 @@
 import { log } from '@log'
 
-import type {
+import {
   VprErrorResponse,
   VprRecognizeResponse,
   VprRegisterResponse,
+  VprRelationship,
 } from './types'
 import {
   clearCache,
@@ -31,13 +32,13 @@ export class VprApi {
    * Register a voiceprint for the current user or their contact
    * @param audioFile Audio file (File or Blob)
    * @param personName Name of the person
-   * @param relationship Relationship to user (default: "朋友")
+   * @param relationship Relationship to user (default: "friend")
    * @returns Registration result
    */
   async register(
     audioFile: File | Blob,
     personName: string,
-    relationship = '朋友',
+    relationship: VprRelationship,
   ): Promise<VprRegisterResponse | VprErrorResponse> {
 
     log.info('VPR', `Registering voice for ${personName} (${relationship}) - User: ${this._userId}`)
