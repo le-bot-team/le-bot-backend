@@ -368,7 +368,7 @@ export class ApiWrapper {
           const registerResult = await this._vprApi.register(
             audioBlob,
             this._nickname || '用户',
-            '本人',
+            'self',
           )
 
           if (registerResult.success) {

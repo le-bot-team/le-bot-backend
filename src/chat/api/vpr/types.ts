@@ -1,6 +1,11 @@
 // VPR API Types based on the API documentation
 
-export type VprRelationship = 'self' | 'family' | 'friend' | 'colleague' | 'other'
+export type VprRelationship =
+  | 'self'
+  | 'family'
+  | 'friend'
+  | 'colleague'
+  | 'other'
 
 export interface VprRegisterResponse {
   success: boolean
@@ -9,6 +14,11 @@ export interface VprRegisterResponse {
   person_name: string
   voice_id: string | null
   registration_time: string
+}
+
+export interface VprRegisterOptions {
+  relationship?: VprRelationship
+  is_temporal?: boolean
 }
 
 export interface VprRecognizeRequest {
@@ -105,6 +115,15 @@ export interface VprCacheClearResponse {
   message: string
 }
 
+export interface VprCleanupTemporalResponse {
+  success: boolean
+  message: string
+  deleted_count: number
+  total_checked: number
+  user_id: string | null
+  timestamp: string
+}
+
 export interface VprDeleteUserResponse {
   success: boolean
   message: string
@@ -120,4 +139,3 @@ export interface VprErrorResponse {
   message: string
   error?: string
 }
-

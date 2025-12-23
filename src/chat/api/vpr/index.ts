@@ -8,6 +8,7 @@ import {
 } from './types'
 import {
   clearCache,
+  cleanupTemporal,
   deletePerson,
   deleteUser,
   getGlobalStats,
@@ -33,17 +34,22 @@ export class VprApi {
    * @param audioFile Audio file (File or Blob)
    * @param personName Name of the person
    * @param relationship Relationship to user (default: "friend")
+   * @param isTemporal Whether the enrollment should be treated as temporal (auto-cleanup)
    * @returns Registration result
    */
   async register(
     audioFile: File | Blob,
     personName: string,
     relationship: VprRelationship,
+    isTemporal?: boolean,
   ): Promise<VprRegisterResponse | VprErrorResponse> {
 
     log.info('VPR', `Registering voice for ${personName} (${relationship}) - User: ${this._userId}`)
 
-    const result = await registerVoice(audioFile, this._userId, personName, relationship)
+    const result = await registerVoice(audioFile, this._userId, personName, {
+      relationship,
+      is_temporal: isTemporal,
+    })
 
     if (result.success) {
       log.info(
@@ -61,11 +67,13 @@ export class VprApi {
    * Recognize a person from audio
    * @param audioFile Audio file to recognize
    * @param threshold Custom threshold (optional, uses default if not provided)
+   * @param refreshTemporal When true, refreshes the temporal feature TTL for matched voices
    * @returns Recognition result
    */
   async recognize(
     audioFile: File | Blob,
     threshold?: number,
+    refreshTemporal?: boolean,
   ): Promise<VprRecognizeResponse | VprErrorResponse> {
 
     const recognitionThreshold = threshold ?? this._defaultThreshold
@@ -75,7 +83,12 @@ export class VprApi {
       `Recognizing voice for user ${this._userId} with threshold ${recognitionThreshold}`,
     )
 
-    const result = await recognizeVoice(audioFile, this._userId, recognitionThreshold)
+    const result = await recognizeVoice(
+      audioFile,
+      this._userId,
+      recognitionThreshold,
+      refreshTemporal,
+    )
 
     if (result.success && 'person_name' in result) {
       const recognizeResult = result as VprRecognizeResponse
@@ -149,11 +162,21 @@ export class VprApi {
     log.warn('VPR', `Deleting all data for user ${this._userId}`)
     return deleteUser(this._userId)
   }
+
+  /**
+   * Cleanup expired temporal vectors
+   * @param userId Optional override to target another user; defaults to this instance user
+   */
+  async cleanupTemporal(userId?: string) {
+
+    return cleanupTemporal(userId ?? this._userId)
+  }
 }
 
 // Export utility functions for advanced usage
 export {
   clearCache,
+  cleanupTemporal,
   deleteUser,
   deletePerson,
   getGlobalStats,
@@ -167,4 +190,3 @@ export {
 
 // Export types
 export type * from './types'
-

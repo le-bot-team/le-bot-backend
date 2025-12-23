@@ -12,7 +12,8 @@ import {
   VprStorageInfoResponse,
   VprUserStatsResponse,
   VprUsersResponse,
-  VprRelationship,
+  VprRegisterOptions,
+  VprCleanupTemporalResponse,
 } from './types'
 
 /**
@@ -20,21 +21,24 @@ import {
  * @param file Audio file (supported formats: .wav, .mp3, .flac, .m4a, .ogg, .aac)
  * @param userId User unique identifier
  * @param personName Person name
- * @param relationship Relationship with user (default: "friend")
+ * @param options Optional relationship label and temporal enrollment flag
  */
 export async function registerVoice(
   file: File | Blob,
   userId: string,
   personName: string,
-  relationship?: VprRelationship,
+  options?: VprRegisterOptions,
 ): Promise<VprRegisterResponse | VprErrorResponse> {
   try {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('user_id', userId)
     formData.append('person_name', personName)
-    if (relationship) {
-      formData.append('relationship', relationship)
+    if (options?.relationship) {
+      formData.append('relationship', options.relationship)
+    }
+    if (typeof options?.is_temporal === 'boolean') {
+      formData.append('is_temporal', String(options.is_temporal))
     }
 
     const response = await fetch(`${process.env.VPR_BASE_URL}/register`, {
@@ -78,11 +82,13 @@ export async function registerVoice(
  * @param file Audio file
  * @param userId Optional user ID to search within specific user
  * @param threshold Recognition threshold (0.0-1.0, default: 0.6)
+ * @param refreshTemporal When true, refreshes matched temporal vectors' TTL to avoid cleanup
  */
 export async function recognizeVoice(
   file: File | Blob,
   userId?: string,
   threshold = 0.6,
+  refreshTemporal?: boolean,
 ): Promise<VprRecognizeResponse | VprErrorResponse> {
   try {
     const formData = new FormData()
@@ -91,6 +97,9 @@ export async function recognizeVoice(
       formData.append('user_id', userId)
     }
     formData.append('threshold', threshold.toString())
+    if (typeof refreshTemporal === 'boolean') {
+      formData.append('refresh_temporal', String(refreshTemporal))
+    }
 
     const response = await fetch(`${process.env.VPR_BASE_URL}/recognize`, {
       method: 'POST',
@@ -440,6 +449,51 @@ export async function deletePerson(
     return data
   } catch (error) {
     log.error('VPR', `Error deleting person: ${error}`)
+    return {
+      success: false,
+      message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+}
+
+/**
+ * Manually cleanup expired temporal vectors
+ * @param userId Optional user ID to limit cleanup scope
+ */
+export async function cleanupTemporal(
+  userId?: string,
+): Promise<VprCleanupTemporalResponse | VprErrorResponse> {
+  try {
+    const url = new URL(`${process.env.VPR_BASE_URL}/cleanup-temporal`)
+    if (userId) {
+      url.searchParams.set('user_id', userId)
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+    })
+
+    const data = (await response.json()) as
+      | VprCleanupTemporalResponse
+      | VprErrorResponse
+
+    if (!response.ok) {
+      const errorData = data as VprErrorResponse
+      log.error(
+        'VPR',
+        `Failed to cleanup temporal vectors: ${errorData.message || response.statusText}`,
+      )
+      return {
+        success: false,
+        message: errorData.message || response.statusText,
+        error: 'error' in errorData ? errorData.error : undefined,
+      }
+    }
+
+    log.info('VPR', `Temporal cleanup finished (user: ${userId ?? 'all'})`)
+    return data
+  } catch (error) {
+    log.error('VPR', `Error cleaning temporal vectors: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
