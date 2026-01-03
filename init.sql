@@ -4,7 +4,7 @@ create extension if not exists "pgcrypto";
 -- users tables
 create table users
 (
-    id            uuid primary key default gen_random_uuid(),
+    id            uuid primary key default uuidv7(),
     created_at    timestamp default now(),
     updated_at    timestamp default now(),
 
@@ -37,7 +37,7 @@ create index idx_users_phone on users(phone);
 create type group_role_type as enum ('owner', 'admin', 'member');
 create table groups
 (
-    id          uuid        not null primary key default gen_random_uuid(),
+    id          uuid        not null primary key default uuidv7(),
     created_at  timestamp default now(),
     updated_at  timestamp default now(),
 
@@ -63,7 +63,7 @@ create type device_type as enum ('robot');
 create type device_share_permission_type as enum ('view', 'control');
 create table devices
 (
-    id         uuid primary key default gen_random_uuid(),
+    id         uuid primary key default uuidv7(),
     created_at timestamp default now(),
     updated_at timestamp default now(),
 
