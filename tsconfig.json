@@ -38,6 +38,9 @@
       "@chat/*": [
         "./src/chat/*"
       ],
+      "@device/*": [
+        "./src/device/*"
+      ],
       "@db/*": [
         "./src/db/*"
       ],

@@ -6,6 +6,7 @@ import { Elysia, t } from 'elysia'
 
 import { authRoute } from '@auth/route'
 import { chatRoute } from '@chat/route'
+import { deviceRoute } from '@device/route'
 import { log } from '@log'
 import { profileRoute } from '@profile/route'
 
@@ -37,6 +38,7 @@ const app = new Elysia()
   })
   .use(authRoute)
   .use(chatRoute)
+  .use(deviceRoute)
   .use(profileRoute)
   .listen(3000)
 
