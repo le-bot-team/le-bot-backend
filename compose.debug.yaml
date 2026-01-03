@@ -1,21 +1,17 @@
-version: '3.9'
-networks:
-  internal:
-    driver: bridge
-
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
+    command: ["bun", "run", "dev"]
     env_file:
       - .env
     environment:
       DATABASE_URL: postgres://app:app@postgres:5432/app
     ports:
       - "3000:3000"
-    networks:
-      - internal
+    volumes:
+      - ./:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,13 +23,13 @@ services:
       POSTGRES_PASSWORD: app
       POSTGRES_DB: app
       POSTGRES_INITDB_ARGS: "--data-checksums"
-    networks:
-      - internal
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5

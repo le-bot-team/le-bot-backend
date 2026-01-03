@@ -1,0 +1,12 @@
+node_modules
+bun.lockb
+npm-debug.log
+yarn-error.log
+.pnpm-store
+.git
+.gitignore
+.idea
+.DS_Store
+.env
+server
+

@@ -5,7 +5,8 @@
     "format": "prettier --write \"./src*/**/*.{ts,js,cjs,mjs,json,md}\"",
     "lint": "eslint -c ./eslint.config.mjs \"./src*/**/*.{ts,js,cjs,mjs}\"",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts | pino-pretty -c -t SYS:standard -S"
+    "dev": "bun run --watch src/index.ts | pino-pretty -c -t SYS:standard -S",
+    "build": "bun build --compile --minify-whitespace --minify-syntax --target bun --outfile server src/index.ts"
   },
   "dependencies": {
     "@bogeychan/elysia-logger": "^0.1.8",
