@@ -14,14 +14,14 @@ export const deviceRoute = new Elysia({ prefix: '/api/v1/device' })
   .get(
     '/mine',
     async ({ userId, db }) => {
-      const ownerDevices = await db
+      const ownerDevices = (await db
         .select()
         .from(devices)
-        .where(eq(devices.ownerId, Number(userId)))
+        .where(eq(devices.ownerId, Number(userId))))
       return {
         success: true,
         data: {
-          devices: ownerDevices
+          devices: ownerDevices,
         },
       }
     },
