@@ -1,4 +1,4 @@
-import { pgTable, index, unique, check, uuid, timestamp, text, foreignKey, jsonb, boolean, primaryKey, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, index, unique, check, uuid, timestamp, text, foreignKey, jsonb, primaryKey, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const deviceSharePermissionType = pgEnum("device_share_permission_type", ['view', 'control'])
@@ -85,14 +85,12 @@ export const devices = pgTable("devices", {
 
 export const conversations = pgTable("conversations", {
 	id: text().primaryKey().notNull(),
+	userId: uuid("user_id").notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
-	userId: uuid("user_id").notNull(),
-	botId: text("bot_id"),
+	// TODO: failed to parse database type 'message_data[]'
+	messages: unknown("messages").array(),
 	metaData: jsonb("meta_data"),
-	messages: jsonb(),
-	lastSectionId: text("last_section_id"),
-	logId: text("log_id"),
 }, (table) => [
 	index("idx_conversations_user").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
 	foreignKey({
@@ -106,38 +104,33 @@ export const conversations = pgTable("conversations", {
 
 export const conversationChats = pgTable("conversation_chats", {
 	id: text().primaryKey().notNull(),
+	userId: uuid("user_id").notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
-	userId: uuid("user_id").notNull(),
-	conversationId: text("conversation_id").notNull(),
-	sectionId: text("section_id").notNull(),
-	botId: text("bot_id").notNull(),
-	shortcutCommandId: text("shortcut_command_id").notNull(),
+	cid: text().notNull(),
+	vid: text().notNull(),
 	additionalMessages: jsonb("additional_messages"),
-	stream: boolean(),
 	customVariables: jsonb("custom_variables"),
-	autoSaveHistory: boolean("auto_save_history"),
 	metaData: jsonb("meta_data"),
 	extraParams: jsonb("extra_params"),
 	response: jsonb(),
-	type: messageType(),
+	type: messageType().notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [users.id],
 			name: "conversation_chats_user_id_fkey"
-		}),
+		}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.conversationId],
+			columns: [table.cid],
 			foreignColumns: [conversations.id],
-			name: "conversation_chats_conversation_id_fkey"
+			name: "conversation_chats_cid_fkey"
 		}).onDelete("cascade"),
 	check("conversation_chats_id_not_null", sql`NOT NULL id`),
 	check("conversation_chats_user_id_not_null", sql`NOT NULL user_id`),
-	check("conversation_chats_conversation_id_not_null", sql`NOT NULL conversation_id`),
-	check("conversation_chats_section_id_not_null", sql`NOT NULL section_id`),
-	check("conversation_chats_bot_id_not_null", sql`NOT NULL bot_id`),
-	check("conversation_chats_shortcut_command_id_not_null", sql`NOT NULL shortcut_command_id`),
+	check("conversation_chats_cid_not_null", sql`NOT NULL cid`),
+	check("conversation_chats_vid_not_null", sql`NOT NULL vid`),
+	check("conversation_chats_type_not_null", sql`NOT NULL type`),
 ]);
 
 export const deviceGroupData = pgTable("device_group_data", {

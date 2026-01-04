@@ -42,7 +42,7 @@ export const conversationChatsRelations = relations(conversationChats, ({one}) =
 		references: [users.id]
 	}),
 	conversation: one(conversations, {
-		fields: [conversationChats.conversationId],
+		fields: [conversationChats.cid],
 		references: [conversations.id]
 	}),
 }));
