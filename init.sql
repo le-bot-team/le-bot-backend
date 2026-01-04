@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pg_jsonschema;
+
 -- users tables
 create table users
 (
@@ -114,15 +116,6 @@ create index idx_device_shares_user on device_shares (user_id);
 
 -- conversation tables
 create type message_type as enum ('question', 'answer', 'function_call', 'tool_output', 'tool_response', 'follow_up', 'verbose');
-create type message_data as
-(
-    id            text,
-    voiceprint_id text,
-    created_at    timestamp,
-    type          message_type,
-    content       jsonb,
-    meta_data     jsonb
-);
 create table conversations
 (
     id         text not null unique primary key,
@@ -130,25 +123,29 @@ create table conversations
     created_at timestamp default now(),
     updated_at timestamp default now(),
 
-    messages   message_data[],
-    meta_data  jsonb
+    messages   jsonb     default '[]'::jsonb,
+    meta_data  jsonb,
+    constraint conversations_messages_schema check (
+        jsonb_matches_schema(
+                '{
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["id", "type", "content"],
+                    "properties": {
+                      "id": {"type": "string"},
+                      "voiceprint_id": {"type": ["string", "null"]},
+                      "created_at": {"type": ["string", "null"], "format": "date-time"},
+                      "type": {
+                        "type": "string",
+                        "enum": ["question", "answer", "function_call", "tool_output", "tool_response", "follow_up", "verbose"]
+                      },
+                      "content": {},
+                      "meta_data": {}
+                    },
+                    "additionalProperties": true
+                  }
+                }',
+                messages)
+        )
 );
-
-create table conversation_chats
-(
-    id                  text         not null unique primary key,
-    user_id             uuid         not null references users (id) on delete cascade,
-    created_at          timestamp default now(),
-    updated_at          timestamp default now(),
-
-    cid                 text         not null references conversations (id) on delete cascade,
-    vid                 text         not null, -- voiceprint id
-
-    additional_messages jsonb,
-    custom_variables    jsonb,
-    meta_data           jsonb,
-    extra_params        jsonb,
-    response            jsonb,
-    type                message_type not null
-);
-create index idx_conversations_user on conversations (user_id);

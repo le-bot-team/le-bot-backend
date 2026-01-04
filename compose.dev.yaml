@@ -2,7 +2,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: app.Dockerfile
     command: ["bun", "run", "dev"]
     env_file:
       - .env
@@ -16,7 +16,10 @@ services:
       postgres:
         condition: service_healthy
   postgres:
-    image: postgres:18
+    image: postgres-pg-jsonschema:latest
+    build:
+      context: .
+      dockerfile: postgres.Dockerfile
     restart: unless-stopped
     environment:
       POSTGRES_USER: app
