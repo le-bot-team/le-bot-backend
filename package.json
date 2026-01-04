@@ -6,7 +6,11 @@
     "lint": "eslint -c ./eslint.config.mjs \"./src*/**/*.{ts,js,cjs,mjs}\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts | pino-pretty -c -t SYS:standard -S",
-    "build": "bun build --compile --minify-whitespace --minify-syntax --target bun --outfile server src/index.ts"
+    "build": "bun build --compile --minify-whitespace --minify-syntax --target bun --outfile server src/index.ts",
+    "docker-dev:up": "docker compose -f docker-compose.dev.yml up --build --force-recreate -d",
+    "docker-dev:stop": "docker compose -f docker-compose.dev.yml down",
+    "docker-dev:clear": "bun run docker-dev:stop && docker volume rm le-bot-backend_pgdata",
+    "docker-dev:fresh": "bun run docker-dev:clear && bun run docker-dev:up"
   },
   "dependencies": {
     "@bogeychan/elysia-logger": "^0.1.8",
