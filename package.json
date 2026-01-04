@@ -9,7 +9,7 @@
     "build": "bun build --compile --minify-whitespace --minify-syntax --target bun --outfile server src/index.ts",
     "docker-dev:up": "docker compose -f compose.dev.yaml up --build --force-recreate -d",
     "docker-dev:stop": "docker compose -f compose.dev.yaml down",
-    "docker-dev:clear": "bun run docker-dev:stop && docker volume rm le-bot-backend_pgdata",
+    "docker-dev:clear": "bun run docker-dev:stop && docker volume rm -f le-bot-backend_pgdata",
     "docker-dev:fresh": "bun run docker-dev:clear && bun run docker-dev:up"
   },
   "dependencies": {
