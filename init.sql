@@ -124,28 +124,5 @@ create table conversations
     updated_at timestamp default now(),
 
     messages   jsonb     default '[]'::jsonb,
-    meta_data  jsonb,
-    constraint conversations_messages_schema check (
-        jsonb_matches_schema(
-                '{
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "required": ["id", "type", "content"],
-                    "properties": {
-                      "id": {"type": "string"},
-                      "voiceprint_id": {"type": ["string", "null"]},
-                      "created_at": {"type": ["string", "null"], "format": "date-time"},
-                      "type": {
-                        "type": "string",
-                        "enum": ["question", "answer", "function_call", "tool_output", "tool_response", "follow_up", "verbose"]
-                      },
-                      "content": {},
-                      "meta_data": {}
-                    },
-                    "additionalProperties": true
-                  }
-                }',
-                messages)
-        )
+    meta_data  jsonb
 );

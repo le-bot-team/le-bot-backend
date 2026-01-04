@@ -19,10 +19,7 @@ services:
       postgres:
         condition: service_healthy
   postgres:
-    image: postgres-pg-jsonschema:latest
-    build:
-      context: .
-      dockerfile: postgres.Dockerfile
+    image: postgres:18
     restart: unless-stopped
     environment:
       POSTGRES_USER: app
