@@ -27,7 +27,7 @@ export class AsrApi {
 
   constructor(
     private readonly _connectId: string,
-    private readonly _userId: bigint,
+    private readonly _userId: string,
     private readonly _deviceId: string,
   ) {}
 
@@ -197,7 +197,7 @@ export class TtsApi {
 
   constructor(
     private readonly _connectId: string,
-    private readonly _userId: bigint,
+    private readonly _userId: string,
   ) {}
 
   async startSession(): Promise<boolean> {

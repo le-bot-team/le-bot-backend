@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { users, userProfiles, devices, conversations, conversationChats, groups, groupMembers, deviceGroupData, deviceUserData, deviceShares } from "./schema";
+import { users, userProfiles, devices, conversations, conversationChats, deviceGroupData, groups, groupMembers, deviceShares, deviceUserData } from "./schema";
 
 export const userProfilesRelations = relations(userProfiles, ({one}) => ({
 	user: one(users, {
@@ -14,8 +14,8 @@ export const usersRelations = relations(users, ({many}) => ({
 	conversations: many(conversations),
 	conversationChats: many(conversationChats),
 	groupMembers: many(groupMembers),
-	deviceUserData: many(deviceUserData),
 	deviceShares: many(deviceShares),
+	deviceUserData: many(deviceUserData),
 }));
 
 export const devicesRelations = relations(devices, ({one, many}) => ({
@@ -24,8 +24,8 @@ export const devicesRelations = relations(devices, ({one, many}) => ({
 		references: [users.id]
 	}),
 	deviceGroupData: many(deviceGroupData),
-	deviceUserData: many(deviceUserData),
 	deviceShares: many(deviceShares),
+	deviceUserData: many(deviceUserData),
 }));
 
 export const conversationsRelations = relations(conversations, ({one, many}) => ({
@@ -47,22 +47,6 @@ export const conversationChatsRelations = relations(conversationChats, ({one}) =
 	}),
 }));
 
-export const groupMembersRelations = relations(groupMembers, ({one}) => ({
-	group: one(groups, {
-		fields: [groupMembers.groupId],
-		references: [groups.id]
-	}),
-	user: one(users, {
-		fields: [groupMembers.userId],
-		references: [users.id]
-	}),
-}));
-
-export const groupsRelations = relations(groups, ({many}) => ({
-	groupMembers: many(groupMembers),
-	deviceGroupData: many(deviceGroupData),
-}));
-
 export const deviceGroupDataRelations = relations(deviceGroupData, ({one}) => ({
 	device: one(devices, {
 		fields: [deviceGroupData.deviceId],
@@ -74,13 +58,18 @@ export const deviceGroupDataRelations = relations(deviceGroupData, ({one}) => ({
 	}),
 }));
 
-export const deviceUserDataRelations = relations(deviceUserData, ({one}) => ({
-	device: one(devices, {
-		fields: [deviceUserData.deviceId],
-		references: [devices.id]
+export const groupsRelations = relations(groups, ({many}) => ({
+	deviceGroupData: many(deviceGroupData),
+	groupMembers: many(groupMembers),
+}));
+
+export const groupMembersRelations = relations(groupMembers, ({one}) => ({
+	group: one(groups, {
+		fields: [groupMembers.groupId],
+		references: [groups.id]
 	}),
 	user: one(users, {
-		fields: [deviceUserData.userId],
+		fields: [groupMembers.userId],
 		references: [users.id]
 	}),
 }));
@@ -92,6 +81,17 @@ export const deviceSharesRelations = relations(deviceShares, ({one}) => ({
 	}),
 	user: one(users, {
 		fields: [deviceShares.userId],
+		references: [users.id]
+	}),
+}));
+
+export const deviceUserDataRelations = relations(deviceUserData, ({one}) => ({
+	device: one(devices, {
+		fields: [deviceUserData.deviceId],
+		references: [devices.id]
+	}),
+	user: one(users, {
+		fields: [deviceUserData.userId],
 		references: [users.id]
 	}),
 }));

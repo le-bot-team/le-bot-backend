@@ -24,8 +24,8 @@ export class VprApi {
   private readonly _userId: string
   private _defaultThreshold: number
 
-  constructor(userId: bigint, threshold = 0.6) {
-    this._userId = userId.toString()
+  constructor(userId: string, threshold = 0.6) {
+    this._userId = userId
     this._defaultThreshold = threshold
   }
 

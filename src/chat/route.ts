@@ -29,7 +29,7 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
       const selectedUsersResult = await db
         .select()
         .from(userProfiles)
-        .where(eq(userProfiles.id, Number(userId)))
+        .where(eq(userProfiles.id, userId))
       if (!selectedUsersResult.length) {
         log.warn({ userId, wsId: ws.id }, 'User not found for WsClient')
         ws.close(1008, 'User not found')

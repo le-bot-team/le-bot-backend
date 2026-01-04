@@ -9,6 +9,6 @@ export const chatService = new Elysia({ name: 'chat/service' })
     wsQuery: wsQueryValidator,
   })
   .state({
-    wsIdToUserIdMap: new Map<string, bigint>(),
+    wsIdToUserIdMap: new Map<string, string>(),
     wsIdToApiWrapperMap: new Map<string, ApiWrapper>(),
   })

@@ -44,7 +44,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
             await db
               .insert(userProfiles)
               .values({
-                id: Number(insertResult[0].id),
+                id: insertResult[0].id,
               })
               .returning({ id: users.id })
           ).length

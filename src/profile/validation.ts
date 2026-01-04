@@ -1,7 +1,7 @@
 import { t } from 'elysia'
 
 export const retrieveProfileInfoValidator = t.Object({
-  id: t.Optional(t.BigInt()),
+  id: t.Optional(t.String({ format: 'uuid' })),
 })
 
 export const updateProfileInfoValidator = t.Object({

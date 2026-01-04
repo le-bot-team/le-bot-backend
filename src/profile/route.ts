@@ -11,6 +11,22 @@ import {
   updateProfileInfoValidator,
 } from './validation'
 
+import { NodePgDatabase } from 'drizzle-orm/node-postgres'
+
+const getUserProfileById = async (
+  db: NodePgDatabase,
+  id: string,
+) => {
+  const selectedUsersResult = await db
+    .select()
+    .from(userProfiles)
+    .where(eq(userProfiles.id, id))
+  if (!selectedUsersResult.length) {
+    return
+  }
+  return selectedUsersResult[0]
+}
+
 export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
   .use(authService)
   .use(profileService)
@@ -18,17 +34,20 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
   .get(
     '/avatar',
     async ({ query: { id }, db, userId }) => {
-      const selectedUsersResult = await db
-        .select()
-        .from(userProfiles)
-        .where(eq(userProfiles.id, id ? Number(id) : Number(userId)))
-      if (!selectedUsersResult.length) {
+      const targetId = id ?? userId
+      if (!targetId?.length) {
+        return {
+          success: false,
+          message: 'User ID is required',
+        }
+      }
+      const selectedUser = await getUserProfileById(db, targetId)
+      if (!selectedUser) {
         return {
           success: false,
           message: 'User not found',
         }
       }
-      const selectedUser = selectedUsersResult[0]
       return {
         success: true,
         data: {
@@ -46,17 +65,20 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
   .get(
     '/info',
     async ({ query: { id }, db, userId }) => {
-      const selectedUsersResult = await db
-        .select()
-        .from(userProfiles)
-        .where(eq(userProfiles.id, id ? Number(id) : Number(userId)))
-      if (!selectedUsersResult.length) {
+      const targetId = id ?? userId
+      if (!targetId?.length) {
+        return {
+          success: false,
+          message: 'User ID is required',
+        }
+      }
+      const selectedUser = await getUserProfileById(db, targetId)
+      if (!selectedUser) {
         return {
           success: false,
           message: 'User not found',
         }
       }
-      const selectedUser = selectedUsersResult[0]
       return {
         success: true,
         data: {
@@ -78,10 +100,16 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
   .put(
     '/info',
     async ({ body, db, userId }) => {
+      if (!userId?.length) {
+        return {
+          success: false,
+          message: 'User ID is required',
+        }
+      }
       const selectedUsersResult = await db
         .select()
         .from(userProfiles)
-        .where(eq(userProfiles.id, Number(userId)))
+        .where(eq(userProfiles.id, userId))
       if (!selectedUsersResult.length) {
         return {
           success: false,
@@ -100,7 +128,7 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
             : undefined,
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(userProfiles.id, Number(userId)))
+        .where(eq(userProfiles.id, userId))
         .returning({ id: userProfiles.id })
 
       if (!updateResult.length) {

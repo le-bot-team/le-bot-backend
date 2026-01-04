@@ -243,12 +243,12 @@ export const serializeRequestMessage = (
 }
 
 export const createAsrRequestData = (
-  userId: bigint,
+  userId: string,
   deviceId: string,
 ): AsrRequest => {
   return {
     user: {
-      uid: userId.toString(),
+      uid: userId,
       did: deviceId,
     },
     audio: {
@@ -275,14 +275,14 @@ export const createAsrRequestData = (
 }
 
 export const createTtsRequestData = (
-  userId: bigint,
+  userId: string,
   event: TtsEventType,
   voiceType: string,
   text?: string,
 ): TtsRequest => {
   return {
     user: {
-      uid: userId.toString(),
+      uid: userId,
     },
     event: event,
     namespace: 'BidirectionalTTS',

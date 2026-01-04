@@ -1,4 +1,4 @@
-import { pgTable, index, unique, check, bigserial, timestamp, text, foreignKey, bigint, jsonb, boolean, primaryKey, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, index, unique, check, uuid, timestamp, text, foreignKey, jsonb, boolean, primaryKey, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const deviceSharePermissionType = pgEnum("device_share_permission_type", ['view', 'control'])
@@ -8,7 +8,7 @@ export const messageType = pgEnum("message_type", ['question', 'answer', 'functi
 
 
 export const users = pgTable("users", {
-	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
+	id: uuid().default(sql`uuidv7()`).primaryKey().notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 	username: text(),
@@ -22,11 +22,11 @@ export const users = pgTable("users", {
 	unique("users_email_key").on(table.email),
 	unique("users_phone_key").on(table.phone),
 	check("check_email_or_phone", sql`(email IS NOT NULL) OR (phone IS NOT NULL)`),
+	check("users_id_not_null", sql`NOT NULL id`),
 ]);
 
 export const userProfiles = pgTable("user_profiles", {
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	id: bigint({ mode: "number" }).primaryKey().notNull(),
+	id: uuid().primaryKey().notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 	nickname: text(),
@@ -42,66 +42,73 @@ export const userProfiles = pgTable("user_profiles", {
 			foreignColumns: [users.id],
 			name: "user_profiles_id_fkey"
 		}).onDelete("cascade"),
+	check("user_profiles_id_not_null", sql`NOT NULL id`),
 ]);
 
 export const groups = pgTable("groups", {
-	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
+	id: uuid().default(sql`uuidv7()`).primaryKey().notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 	name: text().notNull(),
 	description: text(),
 }, (table) => [
 	unique("groups_name_key").on(table.name),
+	check("groups_id_not_null", sql`NOT NULL id`),
+	check("groups_name_not_null", sql`NOT NULL name`),
 ]);
 
 export const devices = pgTable("devices", {
-	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
+	id: uuid().default(sql`uuidv7()`).primaryKey().notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 	identifier: text().notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	ownerId: bigint("owner_id", { mode: "number" }).notNull(),
+	ownerId: uuid("owner_id").notNull(),
 	type: deviceType().notNull(),
 	model: text().notNull(),
 	name: text(),
 	status: jsonb(),
 	config: jsonb(),
 }, (table) => [
-	index("idx_devices_owner").using("btree", table.ownerId.asc().nullsLast().op("int8_ops")),
+	index("idx_devices_owner").using("btree", table.ownerId.asc().nullsLast().op("uuid_ops")),
 	foreignKey({
 			columns: [table.ownerId],
 			foreignColumns: [users.id],
 			name: "devices_owner_id_fkey"
 		}).onDelete("cascade"),
 	unique("devices_identifier_key").on(table.identifier),
+	check("devices_id_not_null", sql`NOT NULL id`),
+	check("devices_identifier_not_null", sql`NOT NULL identifier`),
+	check("devices_owner_id_not_null", sql`NOT NULL owner_id`),
+	check("devices_type_not_null", sql`NOT NULL type`),
+	check("devices_model_not_null", sql`NOT NULL model`),
 ]);
 
 export const conversations = pgTable("conversations", {
 	id: text().primaryKey().notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	userId: bigint("user_id", { mode: "number" }).notNull(),
+	userId: uuid("user_id").notNull(),
 	botId: text("bot_id"),
 	metaData: jsonb("meta_data"),
 	messages: jsonb(),
 	lastSectionId: text("last_section_id"),
 	logId: text("log_id"),
 }, (table) => [
-	index("idx_conversations_user").using("btree", table.userId.asc().nullsLast().op("int8_ops")),
+	index("idx_conversations_user").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
 	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [users.id],
 			name: "conversations_user_id_fkey"
 		}).onDelete("cascade"),
+	check("conversations_id_not_null", sql`NOT NULL id`),
+	check("conversations_user_id_not_null", sql`NOT NULL user_id`),
 ]);
 
 export const conversationChats = pgTable("conversation_chats", {
 	id: text().primaryKey().notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	userId: bigint("user_id", { mode: "number" }).notNull(),
+	userId: uuid("user_id").notNull(),
 	conversationId: text("conversation_id").notNull(),
 	sectionId: text("section_id").notNull(),
 	botId: text("bot_id").notNull(),
@@ -125,36 +132,17 @@ export const conversationChats = pgTable("conversation_chats", {
 			foreignColumns: [conversations.id],
 			name: "conversation_chats_conversation_id_fkey"
 		}).onDelete("cascade"),
-]);
-
-export const groupMembers = pgTable("group_members", {
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	groupId: bigint("group_id", { mode: "number" }).notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	userId: bigint("user_id", { mode: "number" }).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
-	role: groupRoleType().default('member'),
-}, (table) => [
-	index("idx_group_members_user").using("btree", table.userId.asc().nullsLast().op("int8_ops")),
-	foreignKey({
-			columns: [table.groupId],
-			foreignColumns: [groups.id],
-			name: "group_members_group_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "group_members_user_id_fkey"
-		}).onDelete("cascade"),
-	primaryKey({ columns: [table.groupId, table.userId], name: "group_members_pkey"}),
+	check("conversation_chats_id_not_null", sql`NOT NULL id`),
+	check("conversation_chats_user_id_not_null", sql`NOT NULL user_id`),
+	check("conversation_chats_conversation_id_not_null", sql`NOT NULL conversation_id`),
+	check("conversation_chats_section_id_not_null", sql`NOT NULL section_id`),
+	check("conversation_chats_bot_id_not_null", sql`NOT NULL bot_id`),
+	check("conversation_chats_shortcut_command_id_not_null", sql`NOT NULL shortcut_command_id`),
 ]);
 
 export const deviceGroupData = pgTable("device_group_data", {
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	deviceId: bigint("device_id", { mode: "number" }).notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	groupId: bigint("group_id", { mode: "number" }).notNull(),
+	deviceId: uuid("device_id").notNull(),
+	groupId: uuid("group_id").notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 	data: jsonb(),
@@ -169,14 +157,60 @@ export const deviceGroupData = pgTable("device_group_data", {
 			foreignColumns: [groups.id],
 			name: "device_group_data_group_id_fkey"
 		}).onDelete("cascade"),
-	primaryKey({ columns: [table.deviceId, table.groupId], name: "device_group_data_pkey"}),
+	primaryKey({ columns: [table.groupId, table.deviceId], name: "device_group_data_pkey"}),
+	check("device_group_data_device_id_not_null", sql`NOT NULL device_id`),
+	check("device_group_data_group_id_not_null", sql`NOT NULL group_id`),
+]);
+
+export const groupMembers = pgTable("group_members", {
+	groupId: uuid("group_id").notNull(),
+	userId: uuid("user_id").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+	role: groupRoleType().default('member'),
+}, (table) => [
+	index("idx_group_members_user").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
+	foreignKey({
+			columns: [table.groupId],
+			foreignColumns: [groups.id],
+			name: "group_members_group_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [users.id],
+			name: "group_members_user_id_fkey"
+		}).onDelete("cascade"),
+	primaryKey({ columns: [table.userId, table.groupId], name: "group_members_pkey"}),
+	check("group_members_group_id_not_null", sql`NOT NULL group_id`),
+	check("group_members_user_id_not_null", sql`NOT NULL user_id`),
+]);
+
+export const deviceShares = pgTable("device_shares", {
+	deviceId: uuid("device_id").notNull(),
+	userId: uuid("user_id").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+	permission: deviceSharePermissionType().default('view'),
+}, (table) => [
+	index("idx_device_shares_user").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
+	foreignKey({
+			columns: [table.deviceId],
+			foreignColumns: [devices.id],
+			name: "device_shares_device_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [users.id],
+			name: "device_shares_user_id_fkey"
+		}).onDelete("cascade"),
+	primaryKey({ columns: [table.userId, table.deviceId], name: "device_shares_pkey"}),
+	check("device_shares_device_id_not_null", sql`NOT NULL device_id`),
+	check("device_shares_user_id_not_null", sql`NOT NULL user_id`),
 ]);
 
 export const deviceUserData = pgTable("device_user_data", {
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	deviceId: bigint("device_id", { mode: "number" }).notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	userId: bigint("user_id", { mode: "number" }).notNull(),
+	deviceId: uuid("device_id").notNull(),
+	userId: uuid("user_id").notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 	data: jsonb(),
@@ -191,28 +225,7 @@ export const deviceUserData = pgTable("device_user_data", {
 			foreignColumns: [users.id],
 			name: "device_user_data_user_id_fkey"
 		}).onDelete("cascade"),
-	primaryKey({ columns: [table.deviceId, table.userId], name: "device_user_data_pkey"}),
-]);
-
-export const deviceShares = pgTable("device_shares", {
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	deviceId: bigint("device_id", { mode: "number" }).notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	userId: bigint("user_id", { mode: "number" }).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
-	permission: deviceSharePermissionType().default('view'),
-}, (table) => [
-	index("idx_device_shares_user").using("btree", table.userId.asc().nullsLast().op("int8_ops")),
-	foreignKey({
-			columns: [table.deviceId],
-			foreignColumns: [devices.id],
-			name: "device_shares_device_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "device_shares_user_id_fkey"
-		}).onDelete("cascade"),
-	primaryKey({ columns: [table.deviceId, table.userId], name: "device_shares_pkey"}),
+	primaryKey({ columns: [table.userId, table.deviceId], name: "device_user_data_pkey"}),
+	check("device_user_data_device_id_not_null", sql`NOT NULL device_id`),
+	check("device_user_data_user_id_not_null", sql`NOT NULL user_id`),
 ]);

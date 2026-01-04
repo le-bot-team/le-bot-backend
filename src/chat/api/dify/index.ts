@@ -10,7 +10,7 @@ export class DifyApi {
   private _abortController: AbortController | undefined
 
   constructor(
-    private readonly _userId: bigint,
+    private readonly _userId: string,
     private readonly _nickname: string,
   ) {}
 
@@ -65,7 +65,7 @@ export class DifyApi {
           query,
           response_mode: 'streaming',
           conversation_id: conversationId,
-          user: this._userId.toString(),
+          user: this._userId,
         }),
         signal: this._abortController.signal,
       },

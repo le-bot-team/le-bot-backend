@@ -36,7 +36,7 @@ export class ApiWrapper {
 
   constructor(
     private readonly _wsClient: ElysiaWS,
-    private readonly _userId: bigint,
+    private readonly _userId: string,
     private readonly _nickname: string,
     private readonly _deviceId: string,
   ) {

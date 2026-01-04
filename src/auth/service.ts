@@ -17,10 +17,10 @@ import {
 
 export const authService = new Elysia({ name: 'auth/service' })
   .state({
-    accessTokenToUserIdMap: new Map<string, bigint>(),
+    accessTokenToUserIdMap: new Map<string, string>(),
     accessTokenCreatedAtMap: new Map<string, Date>(),
     emailToCodeMap: new Map<string, string>(),
-    userIdToAccessTokenMap: new Map<number, string>(),
+    userIdToAccessTokenMap: new Map<string, string>(),
   })
   .model({
     emailChallenge: emailChallengeValidator,
@@ -80,7 +80,7 @@ export const authService = new Elysia({ name: 'auth/service' })
         return {
           userId: store.accessTokenToUserIdMap.get(
             headers['x-access-token'] as string,
-          ) as bigint,
+          ),
         }
       },
     },
