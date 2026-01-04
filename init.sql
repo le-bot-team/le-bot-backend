@@ -1,5 +1,3 @@
-CREATE EXTENSION IF NOT EXISTS pg_jsonschema;
-
 -- users tables
 create table users
 (
