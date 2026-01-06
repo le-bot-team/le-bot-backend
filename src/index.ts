@@ -9,6 +9,7 @@ import { chatRoute } from '@chat/route'
 import { deviceRoute } from '@device/route'
 import { log } from '@log'
 import { profileRoute } from '@profile/route'
+import { voiceprintRoute } from '@voiceprint/route'
 
 const app = new Elysia()
   .use(log.into())
@@ -40,6 +41,7 @@ const app = new Elysia()
   .use(chatRoute)
   .use(deviceRoute)
   .use(profileRoute)
+  .use(voiceprintRoute)
   .listen(3000)
 
 console.info('')

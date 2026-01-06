@@ -5,7 +5,7 @@ import {
   VprRecognizeResponse,
   VprRegisterResponse,
   VprRelationship,
-} from './types'
+} from 'src/api/vpr/types'
 import {
   clearCache,
   cleanupTemporal,
@@ -18,7 +18,7 @@ import {
   getUsers,
   recognizeVoice,
   registerVoice,
-} from './utils'
+} from 'src/api/vpr/utils'
 
 export class VprApi {
   private readonly _userId: string
@@ -31,33 +31,33 @@ export class VprApi {
 
   /**
    * Register a voiceprint for the current user or their contact
-   * @param audioFile Audio file (File or Blob)
+   * @param audioBase64 Audio file in Base64 format
    * @param personName Name of the person
    * @param relationship Relationship to user (default: "friend")
    * @param isTemporal Whether the enrollment should be treated as temporal (auto-cleanup)
    * @returns Registration result
    */
   async register(
-    audioFile: File | Blob,
+    audioBase64: string,
     personName: string,
     relationship: VprRelationship,
     isTemporal?: boolean,
   ): Promise<VprRegisterResponse | VprErrorResponse> {
+    log.info(
+      `Registering voice for ${personName} (${relationship}) - User: ${this._userId}`,
+    )
 
-    log.info('VPR', `Registering voice for ${personName} (${relationship}) - User: ${this._userId}`)
-
-    const result = await registerVoice(audioFile, this._userId, personName, {
+    const result = await registerVoice(audioBase64, this._userId, personName, {
       relationship,
       is_temporal: isTemporal,
     })
 
     if (result.success) {
       log.info(
-        'VPR',
         `Successfully registered ${personName}: ${(result as VprRegisterResponse).voice_id || 'N/A'}`,
       )
     } else {
-      log.error('VPR', `Failed to register ${personName}: ${result.message}`)
+      log.error(`Failed to register ${personName}: ${result.message}`)
     }
 
     return result
@@ -65,26 +65,24 @@ export class VprApi {
 
   /**
    * Recognize a person from audio
-   * @param audioFile Audio file to recognize
+   * @param audioBase64 Audio file in Base64 format
    * @param threshold Custom threshold (optional, uses default if not provided)
    * @param refreshTemporal When true, refreshes the temporal feature TTL for matched voices
    * @returns Recognition result
    */
   async recognize(
-    audioFile: File | Blob,
+    audioBase64: string,
     threshold?: number,
     refreshTemporal?: boolean,
   ): Promise<VprRecognizeResponse | VprErrorResponse> {
-
     const recognitionThreshold = threshold ?? this._defaultThreshold
 
     log.info(
-      'VPR',
       `Recognizing voice for user ${this._userId} with threshold ${recognitionThreshold}`,
     )
 
     const result = await recognizeVoice(
-      audioFile,
+      audioBase64,
       this._userId,
       recognitionThreshold,
       refreshTemporal,
@@ -93,11 +91,10 @@ export class VprApi {
     if (result.success && 'person_name' in result) {
       const recognizeResult = result as VprRecognizeResponse
       log.info(
-        'VPR',
         `Recognition successful: ${recognizeResult.person_name} (confidence: ${recognizeResult.confidence?.toFixed(2) || 'N/A'}, similarity: ${recognizeResult.similarity?.toFixed(2) || 'N/A'})`,
       )
     } else {
-      log.warn('VPR', `Recognition failed or no match: ${result.message}`)
+      log.warn(`Recognition failed or no match: ${result.message}`)
     }
 
     return result
@@ -115,25 +112,19 @@ export class VprApi {
    */
   set threshold(value: number) {
     if (value < 0 || value > 1) {
-      log.error('VPR', `Invalid threshold value: ${value}. Must be between 0.0 and 1.0`)
+      log.error(
+        `Invalid threshold value: ${value}. Must be between 0.0 and 1.0`,
+      )
       return
     }
     this._defaultThreshold = value
-    log.info('VPR', `Threshold updated to ${value}`)
-  }
-
-  /**
-   * Get user ID
-   */
-  get userId(): string {
-    return this._userId
+    log.info(`Threshold updated to ${value}`)
   }
 
   /**
    * Get all persons registered for this user
    */
   async getPersons() {
-
     return getUserPersons(this._userId)
   }
 
@@ -141,7 +132,6 @@ export class VprApi {
    * Get statistics for this user
    */
   async getStats() {
-
     return getUserStats(this._userId)
   }
 
@@ -150,7 +140,6 @@ export class VprApi {
    * @param personId Person ID to delete
    */
   async deletePerson(personId: string) {
-
     return deletePerson(this._userId, personId)
   }
 
@@ -158,8 +147,7 @@ export class VprApi {
    * Delete all data for this user (use with extreme caution!)
    */
   async deleteAllData() {
-
-    log.warn('VPR', `Deleting all data for user ${this._userId}`)
+    log.warn(`Deleting all data for user ${this._userId}`)
     return deleteUser(this._userId)
   }
 
@@ -168,7 +156,6 @@ export class VprApi {
    * @param userId Optional override to target another user; defaults to this instance user
    */
   async cleanupTemporal(userId?: string) {
-
     return cleanupTemporal(userId ?? this._userId)
   }
 }
@@ -189,4 +176,4 @@ export {
 }
 
 // Export types
-export type * from './types'
+export type * from 'src/api/vpr/types'

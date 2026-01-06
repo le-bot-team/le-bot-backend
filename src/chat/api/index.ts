@@ -10,12 +10,12 @@ import {
   WsUpdateConfigResponseSuccess,
 } from 'src/chat/types/websocket'
 
+import { VprApi } from '@api/vpr'
 import { log } from '@log'
 
 import { DifyApi } from './dify'
 import { AsrApi, TtsApi } from './openspeech'
 import { getResponseForUnrecognizedAsr, isValidTimezone } from './utils'
-import { VprApi } from './vpr'
 
 export class ApiWrapper {
   private readonly _asrApi: AsrApi
@@ -334,18 +334,14 @@ export class ApiWrapper {
     let isSuccess = false
     try {
       // 合并所有音频数据
-      const combinedAudioBase64 = this._audioBufferForVpr.join('')
-
-      // 将 base64 转换为 Uint8Array
-      const audioData = Uint8Array.fromBase64(combinedAudioBase64)
-
-      // 创建 Blob (假设是 PCM 格式)
-      const audioBlob = new Blob([audioData], { type: 'audio/wav' })
+      const combinedAudioBase64 = Buffer.concat(
+        this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64')),
+      ).toString('base64')
 
       log.info('[VPR] Starting voice recognition...')
 
       // 调用 VPR recognize 接口
-      const recognizeResult = await this._vprApi.recognize(audioBlob)
+      const recognizeResult = await this._vprApi.recognize(combinedAudioBase64)
 
       if (recognizeResult.success && 'person_name' in recognizeResult) {
         // 识别成功
@@ -366,7 +362,7 @@ export class ApiWrapper {
           )
 
           const registerResult = await this._vprApi.register(
-            audioBlob,
+            combinedAudioBase64,
             this._nickname || '用户',
             'self',
           )

@@ -14,37 +14,44 @@ import {
   VprUsersResponse,
   VprRegisterOptions,
   VprCleanupTemporalResponse,
+  VprRecognizeRequest, VprRegisterRequest,
 } from './types'
 
 /**
  * Register user audio with voiceprint features
- * @param file Audio file (supported formats: .wav, .mp3, .flac, .m4a, .ogg, .aac)
+ * @param audioBase64 Audio file in Base64 format
  * @param userId User unique identifier
  * @param personName Person name
  * @param options Optional relationship label and temporal enrollment flag
  */
 export async function registerVoice(
-  file: File | Blob,
+  audioBase64: string,
   userId: string,
   personName: string,
   options?: VprRegisterOptions,
 ): Promise<VprRegisterResponse | VprErrorResponse> {
   try {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('user_id', userId)
-    formData.append('person_name', personName)
-    if (options?.relationship) {
-      formData.append('relationship', options.relationship)
-    }
-    if (typeof options?.is_temporal === 'boolean') {
-      formData.append('is_temporal', String(options.is_temporal))
+    const payload: VprRegisterRequest = {
+      audio_data: audioBase64,
+      user_id: userId,
+      person_name: personName,
     }
 
-    const response = await fetch(`${process.env.VPR_BASE_URL}/register`, {
-      method: 'POST',
-      body: formData,
-    })
+    if (options?.relationship) {
+      payload.relationship = options.relationship
+    }
+    if (options?.is_temporal !== undefined) {
+      payload.is_temporal = options.is_temporal
+    }
+
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v4/vpr/register`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    )
 
     const data = (await response.json()) as
       | VprRegisterResponse
@@ -53,7 +60,6 @@ export async function registerVoice(
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to register voice: ${errorData.message || response.statusText}`,
       )
       return {
@@ -63,13 +69,10 @@ export async function registerVoice(
       }
     }
 
-    log.info(
-      'VPR',
-      `Successfully registered voice for ${personName} (${userId})`,
-    )
+    log.info(`Successfully registered voice for ${personName} (${userId})`)
     return data
   } catch (error) {
-    log.error('VPR', `Error registering voice: ${error}`)
+    log.error(`Error registering voice: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
@@ -79,32 +82,37 @@ export async function registerVoice(
 
 /**
  * Recognize user identity from audio
- * @param file Audio file
+ * @param audioBase64 Audio file in Base64 format
  * @param userId Optional user ID to search within specific user
  * @param threshold Recognition threshold (0.0-1.0, default: 0.6)
  * @param refreshTemporal When true, refreshes matched temporal vectors' TTL to avoid cleanup
  */
 export async function recognizeVoice(
-  file: File | Blob,
+  audioBase64: string,
   userId?: string,
   threshold = 0.6,
   refreshTemporal?: boolean,
 ): Promise<VprRecognizeResponse | VprErrorResponse> {
   try {
-    const formData = new FormData()
-    formData.append('file', file)
-    if (userId) {
-      formData.append('user_id', userId)
+    const payload: VprRecognizeRequest = {
+      audio_data: audioBase64,
+      threshold,
     }
-    formData.append('threshold', threshold.toString())
-    if (typeof refreshTemporal === 'boolean') {
-      formData.append('refresh_temporal', String(refreshTemporal))
+    if (userId) {
+      payload.user_id = userId
+    }
+    if (refreshTemporal !== undefined) {
+      payload.refresh_temporal = refreshTemporal
     }
 
-    const response = await fetch(`${process.env.VPR_BASE_URL}/recognize`, {
-      method: 'POST',
-      body: formData,
-    })
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v4/vpr/recognize`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    )
 
     const data = (await response.json()) as
       | VprRecognizeResponse
@@ -113,7 +121,6 @@ export async function recognizeVoice(
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to recognize voice: ${errorData.message || response.statusText}`,
       )
       return {
@@ -124,10 +131,10 @@ export async function recognizeVoice(
     }
 
     const successData = data as VprRecognizeResponse
-    log.info('VPR', `Voice recognition result: ${successData.message}`)
+    log.info(`Voice recognition result: ${successData.message}`)
     return data
   } catch (error) {
-    log.error('VPR', `Error recognizing voice: ${error}`)
+    log.error(`Error recognizing voice: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
@@ -140,16 +147,18 @@ export async function recognizeVoice(
  */
 export async function getUsers(): Promise<VprUsersResponse | VprErrorResponse> {
   try {
-    const response = await fetch(`${process.env.VPR_BASE_URL}/users`, {
-      method: 'GET',
-    })
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v4/vpr/users`,
+      {
+        method: 'GET',
+      },
+    )
 
     const data = (await response.json()) as VprUsersResponse | VprErrorResponse
 
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to get users: ${errorData.message || response.statusText}`,
       )
       return {
@@ -161,7 +170,7 @@ export async function getUsers(): Promise<VprUsersResponse | VprErrorResponse> {
 
     return data
   } catch (error) {
-    log.error('VPR', `Error getting users: ${error}`)
+    log.error(`Error getting users: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
@@ -177,8 +186,9 @@ export async function getUserPersons(
   userId: string,
 ): Promise<VprPersonsResponse | VprErrorResponse> {
   try {
-    const response = await fetch(
-      `${process.env.VPR_BASE_URL}/users/${userId}/persons`,
+    console.log(`${process.env.VPR_URL}/api/v4/vpr/users/${userId}/persons`)
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v4/vpr/users/${userId}/persons`,
       {
         method: 'GET',
       },
@@ -191,7 +201,6 @@ export async function getUserPersons(
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to get user persons: ${errorData.message || response.statusText}`,
       )
       return {
@@ -203,7 +212,7 @@ export async function getUserPersons(
 
     return data
   } catch (error) {
-    log.error('VPR', `Error getting user persons: ${error}`)
+    log.error(`Error getting user persons: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
@@ -219,8 +228,8 @@ export async function getUserStats(
   userId: string,
 ): Promise<VprUserStatsResponse | VprErrorResponse> {
   try {
-    const response = await fetch(
-      `${process.env.VPR_BASE_URL}/stats/${userId}`,
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v4/vpr/stats/${userId}`,
       {
         method: 'GET',
       },
@@ -233,7 +242,6 @@ export async function getUserStats(
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to get user stats: ${errorData.message || response.statusText}`,
       )
       return {
@@ -245,7 +253,7 @@ export async function getUserStats(
 
     return data
   } catch (error) {
-    log.error('VPR', `Error getting user stats: ${error}`)
+    log.error(`Error getting user stats: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
@@ -260,9 +268,12 @@ export async function getGlobalStats(): Promise<
   VprGlobalStatsResponse | VprErrorResponse
 > {
   try {
-    const response = await fetch(`${process.env.VPR_BASE_URL}/stats`, {
-      method: 'GET',
-    })
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v4/vpr/stats`,
+      {
+        method: 'GET',
+      },
+    )
 
     const data = (await response.json()) as
       | VprGlobalStatsResponse
@@ -271,7 +282,6 @@ export async function getGlobalStats(): Promise<
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to get global stats: ${errorData.message || response.statusText}`,
       )
       return {
@@ -283,7 +293,7 @@ export async function getGlobalStats(): Promise<
 
     return data
   } catch (error) {
-    log.error('VPR', `Error getting global stats: ${error}`)
+    log.error(`Error getting global stats: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
@@ -298,9 +308,12 @@ export async function getStorageInfo(): Promise<
   VprStorageInfoResponse | VprErrorResponse
 > {
   try {
-    const response = await fetch(`${process.env.VPR_BASE_URL}/storage/info`, {
-      method: 'GET',
-    })
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v4/vpr/storage/info`,
+      {
+        method: 'GET',
+      },
+    )
 
     const data = (await response.json()) as
       | VprStorageInfoResponse
@@ -309,7 +322,6 @@ export async function getStorageInfo(): Promise<
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to get storage info: ${errorData.message || response.statusText}`,
       )
       return {
@@ -321,7 +333,7 @@ export async function getStorageInfo(): Promise<
 
     return data
   } catch (error) {
-    log.error('VPR', `Error getting storage info: ${error}`)
+    log.error(`Error getting storage info: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
@@ -336,9 +348,12 @@ export async function clearCache(): Promise<
   VprCacheClearResponse | VprErrorResponse
 > {
   try {
-    const response = await fetch(`${process.env.VPR_BASE_URL}/cache/clear`, {
-      method: 'POST',
-    })
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v4/vpr/cache/clear`,
+      {
+        method: 'POST',
+      },
+    )
 
     const data = (await response.json()) as
       | VprCacheClearResponse
@@ -347,7 +362,6 @@ export async function clearCache(): Promise<
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to clear cache: ${errorData.message || response.statusText}`,
       )
       return {
@@ -357,10 +371,10 @@ export async function clearCache(): Promise<
       }
     }
 
-    log.info('VPR', 'Cache cleared successfully')
+    log.info('Cache cleared successfully')
     return data
   } catch (error) {
-    log.error('VPR', `Error clearing cache: ${error}`)
+    log.error(`Error clearing cache: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
@@ -376,8 +390,8 @@ export async function deleteUser(
   userId: string,
 ): Promise<VprDeleteUserResponse | VprErrorResponse> {
   try {
-    const response = await fetch(
-      `${process.env.VPR_BASE_URL}/users/${userId}`,
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v4/vpr/users/${userId}`,
       {
         method: 'DELETE',
       },
@@ -390,7 +404,6 @@ export async function deleteUser(
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to delete user: ${errorData.message || response.statusText}`,
       )
       return {
@@ -400,10 +413,10 @@ export async function deleteUser(
       }
     }
 
-    log.warn('VPR', `User ${userId} and all data deleted`)
+    log.warn(`User ${userId} and all data deleted`)
     return data
   } catch (error) {
-    log.error('VPR', `Error deleting user: ${error}`)
+    log.error(`Error deleting user: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
@@ -421,8 +434,8 @@ export async function deletePerson(
   personId: string,
 ): Promise<VprDeletePersonResponse | VprErrorResponse> {
   try {
-    const response = await fetch(
-      `${process.env.VPR_BASE_URL}/users/${userId}/persons/${personId}`,
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v4/vpr/users/${userId}/persons/${personId}`,
       {
         method: 'DELETE',
       },
@@ -435,7 +448,6 @@ export async function deletePerson(
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to delete person: ${errorData.message || response.statusText}`,
       )
       return {
@@ -445,10 +457,10 @@ export async function deletePerson(
       }
     }
 
-    log.info('VPR', `Person ${personId} deleted from user ${userId}`)
+    log.info(`Person ${personId} deleted from user ${userId}`)
     return data
   } catch (error) {
-    log.error('VPR', `Error deleting person: ${error}`)
+    log.error(`Error deleting person: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
@@ -464,12 +476,12 @@ export async function cleanupTemporal(
   userId?: string,
 ): Promise<VprCleanupTemporalResponse | VprErrorResponse> {
   try {
-    const url = new URL(`${process.env.VPR_BASE_URL}/cleanup-temporal`)
+    const url = new URL(`${process.env.VPR_URL}/api/v4/vpr/cleanup-temporal`)
     if (userId) {
       url.searchParams.set('user_id', userId)
     }
 
-    const response = await fetch(url, {
+    const response = await Bun.fetch(url, {
       method: 'POST',
     })
 
@@ -480,7 +492,6 @@ export async function cleanupTemporal(
     if (!response.ok) {
       const errorData = data as VprErrorResponse
       log.error(
-        'VPR',
         `Failed to cleanup temporal vectors: ${errorData.message || response.statusText}`,
       )
       return {
@@ -490,10 +501,10 @@ export async function cleanupTemporal(
       }
     }
 
-    log.info('VPR', `Temporal cleanup finished (user: ${userId ?? 'all'})`)
+    log.info(`Temporal cleanup finished (user: ${userId ?? 'all'})`)
     return data
   } catch (error) {
-    log.error('VPR', `Error cleaning temporal vectors: ${error}`)
+    log.error(`Error cleaning temporal vectors: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,

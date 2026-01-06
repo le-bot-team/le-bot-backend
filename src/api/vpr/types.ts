@@ -7,6 +7,14 @@ export type VprRelationship =
   | 'colleague'
   | 'other'
 
+export interface VprRegisterRequest {
+  audio_data: string
+  user_id: string
+  person_name: string
+  relationship?: VprRelationship
+  is_temporal?: boolean
+}
+
 export interface VprRegisterResponse {
   success: boolean
   message: string
@@ -22,9 +30,10 @@ export interface VprRegisterOptions {
 }
 
 export interface VprRecognizeRequest {
-  file: File | Blob
+  audio_data: string
   user_id?: string
   threshold?: number
+  refresh_temporal?: boolean
 }
 
 export interface VprRecognizeResponse {
