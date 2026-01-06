@@ -12,9 +12,10 @@ import {
   VprStorageInfoResponse,
   VprUserStatsResponse,
   VprUsersResponse,
-  VprRegisterOptions,
   VprCleanupTemporalResponse,
-  VprRecognizeRequest, VprRegisterRequest,
+  VprRecognizeRequest,
+  VprRegisterRequest,
+  VprRelationship,
 } from './types'
 
 /**
@@ -22,26 +23,23 @@ import {
  * @param audioBase64 Audio file in Base64 format
  * @param userId User unique identifier
  * @param personName Person name
- * @param options Optional relationship label and temporal enrollment flag
+ * @param relationship Relationship to user
+ * @param isTemporal Whether the enrollment should be treated as temporal (auto-cleanup)
  */
 export async function registerVoice(
   audioBase64: string,
   userId: string,
   personName: string,
-  options?: VprRegisterOptions,
+  relationship: VprRelationship,
+  isTemporal = false,
 ): Promise<VprRegisterResponse | VprErrorResponse> {
   try {
     const payload: VprRegisterRequest = {
       audio_data: audioBase64,
       user_id: userId,
       person_name: personName,
-    }
-
-    if (options?.relationship) {
-      payload.relationship = options.relationship
-    }
-    if (options?.is_temporal !== undefined) {
-      payload.is_temporal = options.is_temporal
+      relationship: relationship,
+      is_temporal: isTemporal,
     }
 
     const response = await Bun.fetch(
@@ -509,5 +507,27 @@ export async function cleanupTemporal(
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
     }
+  }
+}
+
+/**
+ * Update person information (name, relationship, temporal status)
+ * @param userId User ID
+ * @param personId Person ID to update
+ * @param data Update data
+ */
+export const updatePersonInfo = async (
+  userId: string,
+  personId: string,
+  data: {
+    newName?: string
+    newRelationship?: string
+    isTemporal?: boolean
+  },
+): Promise<VprErrorResponse> => {
+  log.info(data, `Updating ${userId}'s person info for ${personId}`)
+  return {
+    success: false,
+    message: 'Not implemented yet',
   }
 }

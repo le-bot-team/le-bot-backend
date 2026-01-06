@@ -7,6 +7,30 @@ import { voiceprintService } from '@voiceprint/service'
 export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   .use(authService)
   .use(voiceprintService)
+  .delete(
+    '/persons/:personId',
+    async ({ params, userId }) => {
+      if (!userId?.length) {
+        return { success: false, message: 'Unauthorized' }
+      }
+      const result = await new VprApi(userId).deletePerson(params.personId)
+      if (!result.success) {
+        return {
+          success: false,
+          message: result.message,
+        }
+      }
+      return {
+        success: true,
+        data: {
+          message: result.message,
+        },
+      }
+    },
+    {
+      checkAccessToken: true,
+    },
+  )
   .get(
     '/persons',
     async ({ userId }) => {
@@ -56,6 +80,33 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
     },
     {
       body: 'registerVoiceprint',
+      checkAccessToken: true,
+    },
+  )
+  .put(
+    '/persons/:personId',
+    async ({ params, userId }) => {
+      if (!userId?.length) {
+        return { success: false, message: 'Unauthorized' }
+      }
+      const result = await new VprApi(userId).updatePersonInfo(
+        params.personId,
+        {},
+      )
+      if (!result.success) {
+        return {
+          success: false,
+          message: result.message,
+        }
+      }
+      return {
+        success: true,
+        data: {
+          message: result.message,
+        },
+      }
+    },
+    {
       checkAccessToken: true,
     },
   )

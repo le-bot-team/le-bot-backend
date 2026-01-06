@@ -10,7 +10,12 @@ import {
   WsUpdateConfigResponseSuccess,
 } from 'src/chat/types/websocket'
 
-import { VprApi } from '@api/vpr'
+import {
+  VprApi,
+  VprErrorResponse,
+  VprRecognizeResponse,
+  VprRegisterResponse,
+} from '@api/vpr'
 import { log } from '@log'
 
 import { DifyApi } from './dify'
@@ -26,6 +31,7 @@ export class ApiWrapper {
   private _audioQueue: { buffer: string; isComplete: boolean }[] = []
   private _audioBufferForVpr: string[] = []
   private _conversationId = ''
+  private _currentSpeakerVprId = ''
   private _isAborting = false
   private _isFirstAudio = true
   private _isProcessingAudioQueue = false
@@ -58,14 +64,17 @@ export class ApiWrapper {
         )
       }
 
+      // 清空VPR音频缓存，准备下次识别
+      this._audioBufferForVpr = []
+
       if (recognized.length < 2) {
         log.warn({ recognized }, '[WsAction] ASR text too short, ignored')
         return
       }
 
-      if (!(await this._handleVoicePrintRecognition())) {
-        log.info('[VPR] Voice print recognition failed or no match found')
-      }
+      // if (!(await this._handleVoicePrintRecognition())) {
+      //   log.info('[VPR] Voice print recognition failed or no match found')
+      // }
 
       this._isReady = false
 
@@ -131,38 +140,40 @@ export class ApiWrapper {
         return
       }
 
-      // Interrupt any ongoing DifyApi communication or TtsApi streaming
-      if (!this._isReady) {
-        this._isAborting = true
-        log.info('[WsAction] ASR finished during active session, interrupting')
-        this._difyApi.abort()
-
-        // 强制终止 TTS（不需要先 finishSession，因为是中断）
-        this._ttsApi.abort()
-
-        // 等待 TTS 完全关闭后再重新连接
-        await new Promise((resolve) => setTimeout(resolve, 100))
-
-        // 重新连接并启动 TTS 会话
-        try {
-          const ttsConnected = await this._ttsApi.connect()
-          if (ttsConnected) {
-            await this._ttsApi.startSession()
-            log.info('[WsAction] TTS reconnected after interrupt')
-          } else {
-            log.error('[WsAction] Failed to reconnect TTS after interrupt')
-            this._wsClient.close(1011, 'TTS reconnection failed')
-            this._isAborting = false
-            return
-          }
-        } catch (error) {
-          log.error(error, '[WsAction] Error reconnecting TTS after interrupt')
-          this._wsClient.close(1011, 'TTS reconnection error')
-          this._isAborting = false
-          return
+      const recognizeResult = await this._handleVoicePrintRecognition()
+      if (!recognizeResult) {
+        log.info('[VPR] No voice print recognition result')
+        return
+      }
+      if (recognizeResult.success && recognizeResult.person_id?.length) {
+        log.info(
+          `Voice recognized: '${recognizeResult.person_name}' (id: ${recognizeResult.person_id},confidence: ${recognizeResult.confidence?.toFixed(2)})`,
+        )
+        if (
+          this._isReady &&
+          this._currentSpeakerVprId !== recognizeResult.person_id
+        ) {
+          this._currentSpeakerVprId = recognizeResult.person_id
+        } else if (this._currentSpeakerVprId === recognizeResult.person_id) {
+          // ongoing session and same speaker, interrupt and restart
+          await this._interruptOngoingProcesses()
         }
-
-        this._isAborting = false
+      } else {
+        log.info(`No person recognized: ${recognizeResult.message}`)
+        if (this._isReady) {
+          // Register as unknown speaker only if no ongoing session
+          const result = await this._handleVoicePrintRegistration()
+          if (result?.success && result.voice_id?.length) {
+            log.info(
+              `Registered new voice print for unknown speaker as '${result.person_name}' (id: ${result.voice_id})`,
+            )
+            this._currentSpeakerVprId = result.voice_id
+          } else {
+            log.error(
+              `[VPR] Voice print registration failed: ${result?.message}`,
+            )
+          }
+        }
       }
     }
     this._difyApi.onConversationId = (conversationId) => {
@@ -324,14 +335,15 @@ export class ApiWrapper {
     return this._asrApi.isConnecting || this._ttsApi.isConnecting
   }
 
-  private async _handleVoicePrintRecognition(): Promise<boolean> {
+  private async _handleVoicePrintRecognition(): Promise<
+    VprRecognizeResponse | VprErrorResponse | undefined
+  > {
     // 如果没有缓存的音频数据，直接返回
     if (this._audioBufferForVpr.length === 0) {
       log.warn('[VPR] No audio data buffered for voice print recognition')
-      return false
+      return
     }
 
-    let isSuccess = false
     try {
       // 合并所有音频数据
       const combinedAudioBase64 = Buffer.concat(
@@ -340,54 +352,36 @@ export class ApiWrapper {
 
       log.info('[VPR] Starting voice recognition...')
 
-      // 调用 VPR recognize 接口
-      const recognizeResult = await this._vprApi.recognize(combinedAudioBase64)
-
-      if (recognizeResult.success && 'person_name' in recognizeResult) {
-        // 识别成功
-        log.info(
-          '[VPR]',
-          `Voice recognized: ${recognizeResult.person_name} (confidence: ${recognizeResult.confidence?.toFixed(2)})`,
-        )
-        isSuccess = true
-      } else {
-        // 没有识别到人物
-        log.info('[VPR]', `No person recognized: ${recognizeResult.message}`)
-
-        if (this._isFirstAudio) {
-          // 如果是第一次音频且未识别到，进行注册
-          log.info(
-            '[VPR]',
-            'First audio detected, registering voice as user...',
-          )
-
-          const registerResult = await this._vprApi.register(
-            combinedAudioBase64,
-            this._nickname || '用户',
-            'self',
-          )
-
-          if (registerResult.success) {
-            log.info('[VPR]', 'Voice registered successfully')
-            isSuccess = true
-          } else {
-            log.error(
-              '[VPR]',
-              `Voice registration failed: ${registerResult.message}`,
-            )
-          }
-        } else {
-          // 如果不是第一次音频，直接返回
-          log.info('[VPR]', 'Not first audio, skipping registration')
-        }
-      }
+      return await this._vprApi.recognize(combinedAudioBase64)
     } catch (error) {
-      log.error('[VPR]', `Error during voice print recognition: ${error}`)
-    } finally {
-      // 清空音频缓存，准备下次识别
-      this._audioBufferForVpr = []
+      log.error(`Error during voice print recognition: ${error}`)
     }
-    return isSuccess
+  }
+
+  private async _handleVoicePrintRegistration(): Promise<
+    VprRegisterResponse | VprErrorResponse | undefined
+  > {
+    // 如果没有缓存的音频数据，直接返回
+    if (this._audioBufferForVpr.length === 0) {
+      log.warn('[VPR] No audio data buffered for voice print recognition')
+      return
+    }
+
+    try {
+      // 合并所有音频数据
+      const combinedAudioBase64 = Buffer.concat(
+        this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64')),
+      ).toString('base64')
+
+      return await this._vprApi.register(
+        combinedAudioBase64,
+        '陌生人',
+        'other',
+        true,
+      )
+    } catch (error) {
+      log.error(`Error during voice print registration: ${error}`)
+    }
   }
 
   private async _establishConnections(): Promise<void> {
@@ -428,5 +422,38 @@ export class ApiWrapper {
     } catch (error) {
       log.error(error, '[WsAction] Failed to establish API connections')
     }
+  }
+
+  private async _interruptOngoingProcesses(): Promise<void> {
+    // Interrupt any ongoing DifyApi communication or TtsApi streaming
+    this._isAborting = true
+    log.info('[WsAction] ASR finished during active session, interrupting')
+    this._difyApi.abort()
+
+    // 强制终止 TTS（不需要先 finishSession，因为是中断）
+    this._ttsApi.abort()
+
+    // 等待 TTS 完全关闭后再重新连接
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // 重新连接并启动 TTS 会话
+    try {
+      const ttsConnected = await this._ttsApi.connect()
+      if (ttsConnected) {
+        await this._ttsApi.startSession()
+        log.info('[WsAction] TTS reconnected after interrupt')
+      } else {
+        log.error('[WsAction] Failed to reconnect TTS after interrupt')
+        this._wsClient.close(1011, 'TTS reconnection failed')
+        this._isAborting = false
+        return
+      }
+    } catch (error) {
+      log.error(error, '[WsAction] Error reconnecting TTS after interrupt')
+      this._wsClient.close(1011, 'TTS reconnection error')
+      this._isAborting = false
+      return
+    }
+    this._isAborting = false
   }
 }

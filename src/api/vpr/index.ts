@@ -18,6 +18,7 @@ import {
   getUsers,
   recognizeVoice,
   registerVoice,
+  updatePersonInfo,
 } from 'src/api/vpr/utils'
 
 export class VprApi {
@@ -47,10 +48,13 @@ export class VprApi {
       `Registering voice for ${personName} (${relationship}) - User: ${this._userId}`,
     )
 
-    const result = await registerVoice(audioBase64, this._userId, personName, {
+    const result = await registerVoice(
+      audioBase64,
+      this._userId,
+      personName,
       relationship,
-      is_temporal: isTemporal,
-    })
+      isTemporal,
+    )
 
     if (result.success) {
       log.info(
@@ -157,6 +161,23 @@ export class VprApi {
    */
   async cleanupTemporal(userId?: string) {
     return cleanupTemporal(userId ?? this._userId)
+  }
+
+  /**
+   * Update person information (name, relationship, temporal status)
+   * @param personId Person ID to update
+   * @param data Update data
+   */
+  async updatePersonInfo(
+    personId: string,
+    data: {
+      newName?: string
+      newRelationship?: VprRelationship
+      isTemporal?: boolean
+    },
+  ) {
+    log.info(data, `Updating person info for ${personId}`)
+    return await updatePersonInfo(this._userId, personId, data)
   }
 }
 

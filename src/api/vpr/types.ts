@@ -24,11 +24,6 @@ export interface VprRegisterResponse {
   registration_time: string
 }
 
-export interface VprRegisterOptions {
-  relationship?: VprRelationship
-  is_temporal?: boolean
-}
-
 export interface VprRecognizeRequest {
   audio_data: string
   user_id?: string
