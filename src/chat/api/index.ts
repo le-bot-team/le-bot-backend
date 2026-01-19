@@ -10,12 +10,7 @@ import {
   WsUpdateConfigResponseSuccess,
 } from 'src/chat/types/websocket'
 
-import {
-  VprApi,
-  VprErrorResponse,
-  VprRecognizeResponse,
-  VprRegisterResponse,
-} from '@api/vpr'
+import { VprApi } from '@api/vpr'
 import { log } from '@log'
 
 import { DifyApi } from './dify'
@@ -31,7 +26,7 @@ export class ApiWrapper {
   private _audioQueue: { buffer: string; isComplete: boolean }[] = []
   private _audioBufferForVpr: string[] = []
   private _conversationId = ''
-  private _currentSpeakerVprId = ''
+  private _currentPersonId = ''
   private _isAborting = false
   private _isFirstAudio = true
   private _isProcessingAudioQueue = false
@@ -71,10 +66,6 @@ export class ApiWrapper {
         log.warn({ recognized }, '[WsAction] ASR text too short, ignored')
         return
       }
-
-      // if (!(await this._handleVoicePrintRecognition())) {
-      //   log.info('[VPR] Voice print recognition failed or no match found')
-      // }
 
       this._isReady = false
 
@@ -142,32 +133,41 @@ export class ApiWrapper {
 
       const recognizeResult = await this._handleVoicePrintRecognition()
       if (!recognizeResult) {
-        log.info('[VPR] No voice print recognition result')
         return
       }
-      if (recognizeResult.success && recognizeResult.person_id?.length) {
+      if (recognizeResult.success) {
         log.info(
-          `Voice recognized: '${recognizeResult.person_name}' (id: ${recognizeResult.person_id},confidence: ${recognizeResult.confidence?.toFixed(2)})`,
+          {
+            personId: recognizeResult.data.person_id,
+            personName: recognizeResult.data.person_name,
+            confidence: recognizeResult.data.confidence,
+          },
+          `Voice recognized: '${recognizeResult.data.person_name}'`,
         )
         if (
           this._isReady &&
-          this._currentSpeakerVprId !== recognizeResult.person_id
+          this._currentPersonId !== recognizeResult.data.person_id
         ) {
-          this._currentSpeakerVprId = recognizeResult.person_id
-        } else if (this._currentSpeakerVprId === recognizeResult.person_id) {
+          this._currentPersonId = recognizeResult.data.person_id
+        } else if (this._currentPersonId === recognizeResult.data.person_id) {
           // ongoing session and same speaker, interrupt and restart
           await this._interruptOngoingProcesses()
         }
       } else {
-        log.info(`No person recognized: ${recognizeResult.message}`)
+        log.info(`Vpr recognition failed: ${recognizeResult.message}`)
         if (this._isReady) {
           // Register as unknown speaker only if no ongoing session
           const result = await this._handleVoicePrintRegistration()
-          if (result?.success && result.voice_id?.length) {
+          if (result?.success) {
             log.info(
-              `Registered new voice print for unknown speaker as '${result.person_name}' (id: ${result.voice_id})`,
+              {
+                personId: result.data.person_id,
+                personName: result.data.person_name,
+                voiceId: result.data.voice_id,
+              },
+              'Registered new voice print for unknown speaker',
             )
-            this._currentSpeakerVprId = result.voice_id
+            this._currentPersonId = result.data.voice_id
           } else {
             log.error(
               `[VPR] Voice print registration failed: ${result?.message}`,
@@ -335,13 +335,11 @@ export class ApiWrapper {
     return this._asrApi.isConnecting || this._ttsApi.isConnecting
   }
 
-  private async _handleVoicePrintRecognition(): Promise<
-    VprRecognizeResponse | VprErrorResponse | undefined
-  > {
+  private async _handleVoicePrintRecognition() {
     // 如果没有缓存的音频数据，直接返回
     if (this._audioBufferForVpr.length === 0) {
       log.warn('[VPR] No audio data buffered for voice print recognition')
-      return
+      return null
     }
 
     try {
@@ -355,16 +353,15 @@ export class ApiWrapper {
       return await this._vprApi.recognize(combinedAudioBase64)
     } catch (error) {
       log.error(`Error during voice print recognition: ${error}`)
+      return null
     }
   }
 
-  private async _handleVoicePrintRegistration(): Promise<
-    VprRegisterResponse | VprErrorResponse | undefined
-  > {
+  private async _handleVoicePrintRegistration() {
     // 如果没有缓存的音频数据，直接返回
     if (this._audioBufferForVpr.length === 0) {
       log.warn('[VPR] No audio data buffered for voice print recognition')
-      return
+      return null
     }
 
     try {
@@ -373,14 +370,10 @@ export class ApiWrapper {
         this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64')),
       ).toString('base64')
 
-      return await this._vprApi.register(
-        combinedAudioBase64,
-        '陌生人',
-        'other',
-        true,
-      )
+      return await this._vprApi.register(combinedAudioBase64)
     } catch (error) {
       log.error(`Error during voice print registration: ${error}`)
+      return null
     }
   }
 

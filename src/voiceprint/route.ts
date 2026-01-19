@@ -7,45 +7,16 @@ import { voiceprintService } from '@voiceprint/service'
 export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   .use(authService)
   .use(voiceprintService)
-  .delete(
-    '/persons/:personId',
-    async ({ params, userId }) => {
+  .post(
+    '/recognize',
+    async ({ body, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
-      const result = await new VprApi(userId).deletePerson(params.personId)
-      if (!result.success) {
-        return {
-          success: false,
-          message: result.message,
-        }
-      }
-      return {
-        success: true,
-        data: {
-          message: result.message,
-        },
-      }
+      return await new VprApi(userId).recognize(body.audio)
     },
     {
-      checkAccessToken: true,
-    },
-  )
-  .get(
-    '/persons',
-    async ({ userId }) => {
-      if (!userId?.length) {
-        return { success: false, message: 'Unauthorized' }
-      }
-      // const result = await new VprApi(userId).getPersons()
-      return {
-        success: true,
-        data: {
-          persons: await new VprApi(userId).getPersons(),
-        },
-      }
-    },
-    {
+      body: 'recognize',
       checkAccessToken: true,
     },
   )
@@ -55,58 +26,83 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
-      const result = await new VprApi(userId).register(
+      return await new VprApi(userId).register(
         body.audio,
         body.name,
         body.relationship,
-        body.is_temporal,
+        body.isTemporal,
       )
-      if (!result.success) {
-        return {
-          success: false,
-          message: result.message,
-        }
-      }
-      return {
-        success: true,
-        data: {
-          message: result.message,
-          userId: result.user_id,
-          personName: result.person_name,
-          voiceId: result.voice_id,
-          registrationTime: result.registration_time,
-        },
-      }
     },
     {
-      body: 'registerVoiceprint',
+      body: 'register',
       checkAccessToken: true,
     },
   )
-  .put(
+  .get(
+    '/persons',
+    async ({ userId }) => {
+      if (!userId?.length) {
+        return { success: false, message: 'Unauthorized' }
+      }
+      return await new VprApi(userId).getPersons()
+    },
+    {
+      checkAccessToken: true,
+    },
+  )
+  .delete(
     '/persons/:personId',
     async ({ params, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
-      const result = await new VprApi(userId).updatePersonInfo(
-        params.personId,
-        {},
-      )
-      if (!result.success) {
-        return {
-          success: false,
-          message: result.message,
-        }
-      }
-      return {
-        success: true,
-        data: {
-          message: result.message,
-        },
-      }
+      return await new VprApi(userId).deletePerson(params.personId)
     },
     {
+      checkAccessToken: true,
+    },
+  )
+  .put(
+    '/persons/:personId',
+    async ({ params, body, userId }) => {
+      if (!userId?.length) {
+        return { success: false, message: 'Unauthorized' }
+      }
+      return await new VprApi(userId).updatePerson(params.personId, {
+        newName: body.name,
+        newRelationship: body.relationship,
+        isTemporal: body.isTemporal,
+      })
+    },
+    {
+      body: 'updatePerson',
+      checkAccessToken: true,
+    },
+  )
+  .delete(
+    '/voices/:voiceId',
+    async ({ params, userId }) => {
+      if (!userId?.length) {
+        return { success: false, message: 'Unauthorized' }
+      }
+      return await new VprApi(userId).deleteVoice(params.voiceId)
+    },
+    {
+      checkAccessToken: true,
+    },
+  )
+  .put(
+    '/voices/:voiceId',
+    async ({ params, body, userId }) => {
+      if (!userId?.length) {
+        return { success: false, message: 'Unauthorized' }
+      }
+      return await new VprApi(userId).updateVoice(params.voiceId, {
+        audio_data: body.audio,
+      })
+    },
+    {
+      body: 'updateVoice',
       checkAccessToken: true,
     },
   )

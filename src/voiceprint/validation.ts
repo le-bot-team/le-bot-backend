@@ -1,14 +1,30 @@
 import { t } from 'elysia'
 
-export const registerVoiceprintValidator = t.Object({
+const relationshipEnum = t.Union([
+  t.Literal('self'),
+  t.Literal('family'),
+  t.Literal('friend'),
+  t.Literal('colleague'),
+  t.Literal('other'),
+])
+
+export const recognizeValidator = t.Object({
+  audio: t.String(),
+})
+
+export const registerValidator = t.Object({
   audio: t.String(),
   name: t.String(),
-  relationship: t.Union([
-    t.Literal('self'),
-    t.Literal('family'),
-    t.Literal('friend'),
-    t.Literal('colleague'),
-    t.Literal('other'),
-  ]),
-  is_temporal: t.Optional(t.Boolean()),
+  relationship: relationshipEnum,
+  isTemporal: t.Optional(t.Boolean()),
+})
+
+export const updatePersonValidator = t.Object({
+  name: t.Optional(t.String()),
+  relationship: t.Optional(relationshipEnum),
+  isTemporal: t.Optional(t.Boolean()),
+})
+
+export const updateVoiceValidator = t.Object({
+  audio: t.String(),
 })
