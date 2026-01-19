@@ -31,6 +31,21 @@ create table user_profiles
     last_login  timestamp
 );
 
+create table persons
+(
+    id          uuid not null unique primary key,
+    created_at  timestamp default now(),
+    updated_at  timestamp default now(),
+
+    user_id     uuid not null references users (id) on delete cascade,
+
+    name        text not null,
+    age         int not null,
+    address     text,
+    relationship text,  -- e.g., friend, family, colleague
+    metadata    jsonb   -- Profile, hobbies, personalities, etc.
+);
+
 -- groups tables
 create table groups
 (
@@ -118,6 +133,7 @@ create table conversations
 (
     id         text not null unique primary key,
     user_id    uuid not null references users (id) on delete cascade,
+    person_id  uuid not null references persons (id) on delete cascade,
     created_at timestamp default now(),
     updated_at timestamp default now(),
 
