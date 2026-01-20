@@ -4,6 +4,7 @@ import {
   VprDeletePersonResponse,
   VprDeleteUserResponse,
   VprDeleteVoiceResponse,
+  VprGetUserPerson,
   VprGetUserPersons,
   VprGetUsersResponse,
   VprRecognizeRequest,
@@ -49,9 +50,9 @@ export const getUsers = async (): Promise<VprGetUsersResponse> => {
  * Delete user and all associated data (use with caution)
  * @param userId User ID
  */
-export async function deleteUser(
+export const deleteUser = async (
   userId: string,
-): Promise<VprDeleteUserResponse> {
+): Promise<VprDeleteUserResponse> => {
   try {
     const response = await Bun.fetch(
       `${process.env.VPR_URL}/api/v1/vpr/users/${userId}`,
@@ -186,10 +187,10 @@ export const getPersons = async (
  * @param userId User ID
  * @param personId Person ID
  */
-export async function deletePerson(
+export const deletePerson = async (
   userId: string,
   personId: string,
-): Promise<VprDeletePersonResponse> {
+): Promise<VprDeletePersonResponse> => {
   try {
     const response = await Bun.fetch(
       `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}`,
@@ -216,16 +217,50 @@ export async function deletePerson(
 }
 
 /**
+ * Get a specific person's details for a user
+ * @param userId User ID
+ * @param personId Person ID
+ */
+export const getPerson = async (
+  userId: string,
+  personId: string,
+): Promise<VprGetUserPerson> => {
+  try {
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}`,
+      {
+        method: 'GET',
+      },
+    )
+    if (!response.ok) {
+      console.error(response)
+      return {
+        success: false,
+        message: `Failed to get user person (${response.statusText}): ${await response.text()}`,
+      }
+    }
+
+    return JSON.parse(await response.text())
+  } catch (error) {
+    log.error(`Error getting user person: ${error}`)
+    return {
+      success: false,
+      message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+}
+
+/**
  * Update a person's metadata
  * @param userId User ID
  * @param personId Person ID
  * @param payload Update payload
  */
-export async function updatePerson(
+export const updatePerson = async (
   userId: string,
   personId: string,
   payload: VprUpdatePersonRequest,
-): Promise<VprUpdatePersonResponse> {
+): Promise<VprUpdatePersonResponse> => {
   try {
     const response = await Bun.fetch(
       `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}`,
@@ -256,15 +291,17 @@ export async function updatePerson(
 /**
  * Delete a voice feature for a user
  * @param userId User ID
+ * @param personId Person ID
  * @param voiceId Voice ID
  */
-export async function deleteVoice(
+export const deleteVoice = async (
   userId: string,
+  personId: string,
   voiceId: string,
-): Promise<VprDeleteVoiceResponse> {
+): Promise<VprDeleteVoiceResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/voices/${voiceId}`,
+      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}/voices/${voiceId}`,
       {
         method: 'DELETE',
       },
@@ -290,17 +327,19 @@ export async function deleteVoice(
 /**
  * Update a voice feature for a user
  * @param userId User ID
+ * @param personId Person ID
  * @param voiceId Voice ID
  * @param payload Update payload (metadata and/or audio)
  */
-export async function updateVoice(
+export const updateVoice = async (
   userId: string,
+  personId: string,
   voiceId: string,
   payload: VprUpdateVoiceRequest,
-): Promise<VprUpdateVoiceResponse> {
+): Promise<VprUpdateVoiceResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/voices/${voiceId}`,
+      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}/voices/${voiceId}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

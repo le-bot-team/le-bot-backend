@@ -9,6 +9,7 @@ import {
 import {
   deletePerson,
   deleteVoice,
+  getPerson,
   getPersons,
   recognize,
   register,
@@ -20,7 +21,7 @@ export class VprApi {
   private readonly _userId: string
   private _recognitionThreshold: number
 
-  constructor(userId: string, threshold = 0.6) {
+  constructor(userId: string, threshold = 0.3) {
     this._userId = userId
     this._recognitionThreshold = threshold
   }
@@ -128,6 +129,14 @@ export class VprApi {
   }
 
   /**
+   * Get a person's details by ID
+   * @param personId Person ID to retrieve
+   */
+  async getPerson(personId: string) {
+    return getPerson(this._userId, personId)
+  }
+
+  /**
    * Update a person's metadata (name, relationship, temporal status)
    * @param personId Person ID to update
    * @param data Update data
@@ -158,18 +167,24 @@ export class VprApi {
 
   /**
    * Delete a voice by ID
+   * @param personId Person ID owning the voice
    * @param voiceId Voice ID to delete
    */
-  async deleteVoice(voiceId: string) {
-    return deleteVoice(this._userId, voiceId)
+  async deleteVoice(personId: string, voiceId: string) {
+    return deleteVoice(this._userId, personId, voiceId)
   }
 
   /**
    * Update a voice by ID
+   * @param personId Person ID owning the voice
    * @param voiceId Voice ID to update
    * @param payload Update data
    */
-  async updateVoice(voiceId: string, payload: VprUpdateVoiceRequest) {
-    return updateVoice(this._userId, voiceId, payload)
+  async updateVoice(
+    personId: string,
+    voiceId: string,
+    payload: VprUpdateVoiceRequest,
+  ) {
+    return updateVoice(this._userId, personId, voiceId, payload)
   }
 }

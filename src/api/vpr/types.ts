@@ -73,7 +73,7 @@ export type VprGetUserPersons =
   | VprErrorResponse
   | {
       success: true
-      persons: {
+      data: {
         person_id: string
         person_name?: string
         relationship: string
@@ -84,6 +84,25 @@ export type VprGetUserPersons =
     }
 
 export type VprDeletePersonResponse = VprEmptyResponse | VprErrorResponse
+
+export type VprGetUserPerson=
+  | VprErrorResponse
+  | {
+      success: true
+      data: {
+        person_id: string
+        person_name?: string
+        relationship: string
+        voice_count: number
+        is_temporal: boolean
+        expire_date?: string
+        voices: {
+          voice_id: string
+          feature_vector: number[]
+          created_at: string
+        }[]
+      }
+    }
 
 export interface VprUpdatePersonRequest {
   person_name?: string

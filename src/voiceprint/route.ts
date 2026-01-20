@@ -62,6 +62,18 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
       checkAccessToken: true,
     },
   )
+  .get(
+    '/persons/:personId',
+    async ({ params, userId }) => {
+      if (!userId?.length) {
+        return { success: false, message: 'Unauthorized' }
+      }
+      return await new VprApi(userId).getPerson(params.personId)
+    },
+    {
+      checkAccessToken: true,
+    },
+  )
   .put(
     '/persons/:personId',
     async ({ params, body, userId }) => {
@@ -80,26 +92,33 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
     },
   )
   .delete(
-    '/voices/:voiceId',
+    '/persons/:personId/voices/:voiceId',
     async ({ params, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
-      return await new VprApi(userId).deleteVoice(params.voiceId)
+      return await new VprApi(userId).deleteVoice(
+        params.personId,
+        params.voiceId,
+      )
     },
     {
       checkAccessToken: true,
     },
   )
   .put(
-    '/voices/:voiceId',
+    '/persons/:personId/voices/:voiceId',
     async ({ params, body, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
-      return await new VprApi(userId).updateVoice(params.voiceId, {
-        audio_data: body.audio,
-      })
+      return await new VprApi(userId).updateVoice(
+        params.personId,
+        params.voiceId,
+        {
+          audio_data: body.audio,
+        },
+      )
     },
     {
       body: 'updateVoice',
