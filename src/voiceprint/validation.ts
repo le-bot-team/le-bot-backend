@@ -25,6 +25,10 @@ export const updatePersonValidator = t.Object({
   isTemporal: t.Optional(t.Boolean()),
 })
 
+export const addVoiceValidator = t.Object({
+  audio: t.String(),
+})
+
 export const updateVoiceValidator = t.Object({
   audio: t.String(),
 })

@@ -112,6 +112,21 @@ export interface VprUpdatePersonRequest {
 
 export type VprUpdatePersonResponse = VprEmptyResponse | VprErrorResponse
 
+export interface VprAddVoiceRequest {
+  audio_data: string
+}
+
+export type VprAddVoiceResponse =
+  | VprErrorResponse
+  | {
+      success: true
+      data: {
+        person_id: string
+        voice_id: string
+        voice_count: number
+      }
+    }
+
 export type VprDeleteVoiceResponse = VprEmptyResponse | VprErrorResponse
 
 export interface VprUpdateVoiceRequest {

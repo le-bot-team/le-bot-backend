@@ -7,6 +7,7 @@ import {
   VprUpdateVoiceRequest,
 } from 'src/api/vpr/types'
 import {
+  addVoice,
   deletePerson,
   deleteVoice,
   getPerson,
@@ -163,6 +164,10 @@ export class VprApi {
       relationship: data.newRelationship,
       is_temporal: data.isTemporal,
     })
+  }
+
+  async addVoice(personId: string, audioBase64: string) {
+    return await addVoice(this._userId, personId, { audio_data: audioBase64 })
   }
 
   /**

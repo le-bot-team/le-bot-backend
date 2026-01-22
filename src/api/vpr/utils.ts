@@ -1,6 +1,8 @@
 import { log } from '@log'
 
 import {
+  VprAddVoiceRequest,
+  VprAddVoiceResponse,
   VprDeletePersonResponse,
   VprDeleteUserResponse,
   VprDeleteVoiceResponse,
@@ -317,6 +319,38 @@ export const deleteVoice = async (
     return JSON.parse(await response.text())
   } catch (error) {
     log.error(`Error deleting voice: ${error}`)
+    return {
+      success: false,
+      message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+}
+
+export const addVoice = async (
+  userId: string,
+  personId: string,
+  payload: VprAddVoiceRequest,
+): Promise<VprAddVoiceResponse> => {
+  try {
+    const response = await Bun.fetch(
+      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}/voices/add`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    )
+    if (!response.ok) {
+      console.error(response)
+      return {
+        success: false,
+        message: `Failed to add voice (${response.statusText}): ${await response.text()}`,
+      }
+    }
+
+    return JSON.parse(await response.text())
+  } catch (error) {
+    log.error(`Error adding voice: ${error}`)
     return {
       success: false,
       message: `Network error: ${error instanceof Error ? error.message : String(error)}`,

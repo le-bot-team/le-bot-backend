@@ -91,6 +91,19 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
       checkAccessToken: true,
     },
   )
+  .post(
+    '/persons/:person_id/voices/add',
+    async ({ params, body, userId }) => {
+      if (!userId?.length) {
+        return { success: false, message: 'Unauthorized' }
+      }
+      return await new VprApi(userId).addVoice(params.person_id, body.audio)
+    },
+    {
+      body: 'addVoice',
+      checkAccessToken: true,
+    },
+  )
   .delete(
     '/persons/:personId/voices/:voiceId',
     async ({ params, userId }) => {
