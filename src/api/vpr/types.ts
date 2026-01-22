@@ -7,13 +7,6 @@ export interface VprErrorResponse {
   message: string
 }
 
-export type VprRelationship =
-  | 'self'
-  | 'family'
-  | 'friend'
-  | 'colleague'
-  | 'other'
-
 export type VprGetUsersResponse =
   | VprErrorResponse
   | {
@@ -39,9 +32,7 @@ export type VprRecognizeResponse =
       success: true
       data: {
         person_id: string
-        person_name: string
         voice_id: string
-        relationship: VprRelationship
         confidence: number
         similarity: number
         processing_time_ms: number
@@ -51,8 +42,6 @@ export type VprRecognizeResponse =
 
 export interface VprRegisterRequest {
   audio_data: string
-  person_name?: string
-  relationship: VprRelationship
   is_temporal?: boolean
 }
 
@@ -62,7 +51,6 @@ export type VprRegisterResponse =
       success: true
       data: {
         person_id: string
-        person_name: string
         voice_id: string
         voice_count: number
         registration_time: string
@@ -75,8 +63,6 @@ export type VprGetUserPersons =
       success: true
       data: {
         person_id: string
-        person_name?: string
-        relationship: string
         voice_count: number
         is_temporal: boolean
         expire_date?: string
@@ -91,9 +77,6 @@ export type VprGetUserPerson=
       success: true
       data: {
         person_id: string
-        person_name?: string
-        relationship: string
-        voice_count: number
         is_temporal: boolean
         expire_date?: string
         voices: {
@@ -105,9 +88,7 @@ export type VprGetUserPerson=
     }
 
 export interface VprUpdatePersonRequest {
-  person_name?: string
-  relationship?: VprRelationship
-  is_temporal?: boolean
+  is_temporal: boolean
 }
 
 export type VprUpdatePersonResponse = VprEmptyResponse | VprErrorResponse

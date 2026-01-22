@@ -2,13 +2,18 @@
   <dictionary name="project">
     <words>
       <w>bidirection</w>
+      <w>bigasr</w>
       <w>bigmodel</w>
+      <w>bigtts</w>
       <w>coze</w>
       <w>dify</w>
       <w>hotwords</w>
       <w>nonstream</w>
       <w>openspeech</w>
       <w>punc</w>
+      <w>sauc</w>
+      <w>tianmeixiaoyuan</w>
+      <w>volc</w>
     </words>
   </dictionary>
 </component>

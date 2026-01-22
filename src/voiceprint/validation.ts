@@ -15,6 +15,8 @@ export const recognizeValidator = t.Object({
 export const registerValidator = t.Object({
   audio: t.String(),
   name: t.String(),
+  age: t.Number({ minimum: 0, maximum: 120 }),
+  address: t.Optional(t.String()),
   relationship: relationshipEnum,
   isTemporal: t.Optional(t.Boolean()),
 })

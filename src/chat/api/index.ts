@@ -139,10 +139,9 @@ export class ApiWrapper {
         log.info(
           {
             personId: recognizeResult.data.person_id,
-            personName: recognizeResult.data.person_name,
             confidence: recognizeResult.data.confidence,
           },
-          `Voice recognized: '${recognizeResult.data.person_name}'`,
+          `Voice recognized: '${recognizeResult.data.person_id}'`,
         )
         if (
           this._isReady &&
@@ -162,7 +161,6 @@ export class ApiWrapper {
             log.info(
               {
                 personId: result.data.person_id,
-                personName: result.data.person_name,
                 voiceId: result.data.voice_id,
               },
               'Registered new voice print for unknown speaker',

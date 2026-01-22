@@ -1,19 +1,48 @@
+import { and, eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 
 import { VprApi } from '@api/vpr'
 import { authService } from '@auth/service'
 import { voiceprintService } from '@voiceprint/service'
+import { dbInstance } from '@db/plugin'
+import { persons } from '@db/schema'
+import { log } from '@log'
 
 export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   .use(authService)
+  .use(dbInstance)
   .use(voiceprintService)
   .post(
     '/recognize',
-    async ({ body, userId }) => {
+    async ({ body, db, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
-      return await new VprApi(userId).recognize(body.audio)
+      const vprApi = new VprApi(userId)
+      const result = await vprApi.recognize(body.audio)
+      if (!result.success) {
+        return result
+      }
+      const selectPersonsResult = await db
+        .select()
+        .from(persons)
+        .where(eq(persons.id, result.data.person_id))
+      if (!selectPersonsResult.length) {
+        // Remove person_id since person not found in DB
+        await vprApi.deletePerson(result.data.person_id)
+        return { success: false, message: 'Person not found in database' }
+      }
+      return {
+        success: true,
+        data: {
+          ...result.data,
+          name: selectPersonsResult[0].name,
+          age: selectPersonsResult[0].age,
+          address: selectPersonsResult[0].address,
+          relationship: selectPersonsResult[0].relationship,
+          metadata: selectPersonsResult[0].metadata,
+        },
+      }
     },
     {
       body: 'recognize',
@@ -22,16 +51,34 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   )
   .post(
     '/register',
-    async ({ body, userId }) => {
+    async ({ body, db, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
-      return await new VprApi(userId).register(
-        body.audio,
-        body.name,
-        body.relationship,
-        body.isTemporal,
-      )
+      const vprApi = new VprApi(userId)
+      const result = await vprApi.register(body.audio, body.isTemporal)
+      if (!result.success) {
+        return result
+      }
+
+      const insertResult = await db.insert(persons).values({
+        id: result.data.person_id,
+        userId: userId,
+        name: body.name,
+        age: body.age,
+        address: body.address,
+        relationship: body.relationship,
+      })
+      if (!insertResult.length) {
+        // Rollback VPR person creation
+        await vprApi.deletePerson(result.data.person_id)
+        return {
+          success: false,
+          message: 'Failed to create person in database',
+        }
+      }
+
+      return result
     },
     {
       body: 'register',
@@ -40,11 +87,49 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   )
   .get(
     '/persons',
-    async ({ userId }) => {
+    async ({ db, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
-      return await new VprApi(userId).getPersons()
+      const vprApi = new VprApi(userId)
+      const result = await vprApi.getPersons()
+      if (!result.success) {
+        return result
+      }
+      const selectPersonsResult = await db
+        .select()
+        .from(persons)
+        .where(eq(persons.userId, userId))
+      if (!selectPersonsResult.length) {
+        // Remove user from VPR since no persons found in DB
+        await vprApi.deleteUser()
+        return { success: false, message: 'No persons found in database' }
+      }
+      return {
+        success: true,
+        data: result.data
+          .map((person) => {
+            const selectPerson = selectPersonsResult.find(
+              (selectPerson) => selectPerson.id === person.person_id,
+            )
+            if (!selectPerson) {
+              // Remove person from VPR since not found in DB
+              vprApi
+                .deletePerson(person.person_id)
+                .catch((error) => log.warn(error))
+              return undefined
+            }
+            return {
+              ...person,
+              name: selectPerson.name,
+              age: selectPerson.age,
+              address: selectPerson.address,
+              relationship: selectPerson.relationship,
+              metadata: selectPerson.metadata,
+            }
+          })
+          .filter((person) => person !== undefined),
+      }
     },
     {
       checkAccessToken: true,
@@ -64,11 +149,36 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   )
   .get(
     '/persons/:personId',
-    async ({ params, userId }) => {
+    async ({ db, params, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
-      return await new VprApi(userId).getPerson(params.personId)
+      const vprApi = new VprApi(userId)
+      const result = await vprApi.getPerson(params.personId)
+      if (!result.success) {
+        return result
+      }
+      const selectPersonsResult = await db
+        .select()
+        .from(persons)
+        .where(and(eq(persons.userId, userId), eq(persons.id, params.personId)))
+      if (!selectPersonsResult.length) {
+        // Remove person from VPR since not found in DB
+        await vprApi.deletePerson(params.personId)
+        return { success: false, message: 'Person not found in database' }
+      }
+
+      return {
+        success: true,
+        data: {
+          ...result.data,
+          name: selectPersonsResult[0].name,
+          age: selectPersonsResult[0].age,
+          address: selectPersonsResult[0].address,
+          relationship: selectPersonsResult[0].relationship,
+          metadata: selectPersonsResult[0].metadata,
+        },
+      }
     },
     {
       checkAccessToken: true,
@@ -76,15 +186,46 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   )
   .put(
     '/persons/:personId',
-    async ({ params, body, userId }) => {
+    async ({ body, db, params, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
-      return await new VprApi(userId).updatePerson(params.personId, {
-        newName: body.name,
-        newRelationship: body.relationship,
-        isTemporal: body.isTemporal,
-      })
+
+      let failedMessage = ''
+
+      const updatePayload: Record<string, unknown> = {}
+      if (body.name !== undefined) {
+        updatePayload.name = body.name
+      }
+      if (body.relationship !== undefined) {
+        updatePayload.relationship = body.relationship
+      }
+      if (Object.keys(updatePayload).length) {
+        const insertResult = await db
+          .update(persons)
+          .set(updatePayload)
+          .where(
+            and(eq(persons.id, params.personId), eq(persons.userId, userId)),
+          )
+        if (!insertResult.length) {
+          failedMessage += 'Failed to update person metadata in database'
+        }
+      }
+
+      if (body.isTemporal !== undefined) {
+        const result = await new VprApi(userId).updatePerson(params.personId, {
+          isTemporal: body.isTemporal,
+        })
+        if (!result.success) {
+          failedMessage = failedMessage?.length
+            ? `${failedMessage}\n${result.message}`
+            : result.message
+        }
+      }
+
+      return failedMessage?.length
+        ? { success: false, message: failedMessage }
+        : { success: true }
     },
     {
       body: 'updatePerson',
@@ -93,7 +234,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   )
   .post(
     '/persons/:person_id/voices/add',
-    async ({ params, body, userId }) => {
+    async ({ body, params, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
@@ -121,7 +262,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   )
   .put(
     '/persons/:personId/voices/:voiceId',
-    async ({ params, body, userId }) => {
+    async ({ body, params, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }

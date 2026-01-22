@@ -1,16 +1,16 @@
 import {
   pgTable,
   index,
+  foreignKey,
   unique,
   check,
   uuid,
   timestamp,
   text,
-  foreignKey,
   jsonb,
+  integer,
   primaryKey,
   pgEnum,
-  customType,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -33,46 +33,42 @@ export const messageType = pgEnum('message_type', [
   'follow_up',
   'verbose',
 ])
-const messageData = customType<{
-  data: {
-    id: string
-    voiceprint_id: string
-    created_at: string
-    type: string
-    content: unknown
-    meta_data: unknown
-  }
-  driverData: string
-}>({
-  dataType: () => 'message_data',
-  toDriver(data): string {
-    return `ROW(
-      '${data.id}',
-      '${data.voiceprint_id}',
-      '${data.created_at}',
-      '${data.type}',
-      '${data.content}',
-      '${data.meta_data}',
-    )::message_data`
+
+export const devices = pgTable(
+  'devices',
+  {
+    id: uuid()
+      .default(sql`uuidv7()`)
+      .primaryKey()
+      .notNull(),
+    createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow(),
+    identifier: text().notNull(),
+    ownerId: uuid('owner_id').notNull(),
+    type: deviceType().notNull(),
+    model: text().notNull(),
+    name: text(),
+    status: jsonb(),
+    config: jsonb(),
   },
-  fromDriver(data: string) {
-    const match =
-      /\((?<id>.+),\s?(?<value>.+),\s?(?<voiceprint_id>.+),\s?(?<created_at>.+),\s?(?<type>.+),\s?(?<content>.+),\s?(?<meta_data>.+)\)/.exec(
-        data,
-      )
-    if (!match) {
-      throw new Error('Invalid message_data format')
-    }
-    return {
-      id: match.groups?.id ?? '',
-      voiceprint_id: match.groups?.voiceprint_id ?? '',
-      created_at: match.groups?.created_at ?? '',
-      type: match.groups?.type ?? '',
-      content: match.groups?.content ?? '',
-      meta_data: match.groups?.meta_data ?? '',
-    }
-  },
-})
+  (table) => [
+    index('idx_devices_owner').using(
+      'btree',
+      table.ownerId.asc().nullsLast().op('uuid_ops'),
+    ),
+    foreignKey({
+      columns: [table.ownerId],
+      foreignColumns: [users.id],
+      name: 'devices_owner_id_fkey',
+    }).onDelete('cascade'),
+    unique('devices_identifier_key').on(table.identifier),
+    check('devices_id_not_null', sql`NOT NULL id`),
+    check('devices_identifier_not_null', sql`NOT NULL identifier`),
+    check('devices_owner_id_not_null', sql`NOT NULL owner_id`),
+    check('devices_type_not_null', sql`NOT NULL type`),
+    check('devices_model_not_null', sql`NOT NULL model`),
+  ],
+)
 
 export const users = pgTable(
   'users',
@@ -132,6 +128,32 @@ export const userProfiles = pgTable(
   ],
 )
 
+export const persons = pgTable(
+  'persons',
+  {
+    id: uuid().primaryKey().notNull(),
+    createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow(),
+    userId: uuid('user_id').notNull(),
+    name: text().notNull(),
+    age: integer().notNull(),
+    address: text(),
+    relationship: text(),
+    metadata: jsonb(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [users.id],
+      name: 'persons_user_id_fkey',
+    }).onDelete('cascade'),
+    check('persons_id_not_null', sql`NOT NULL id`),
+    check('persons_user_id_not_null', sql`NOT NULL user_id`),
+    check('persons_name_not_null', sql`NOT NULL name`),
+    check('persons_age_not_null', sql`NOT NULL age`),
+  ],
+)
+
 export const groups = pgTable(
   'groups',
   {
@@ -151,128 +173,31 @@ export const groups = pgTable(
   ],
 )
 
-export const devices = pgTable(
-  'devices',
-  {
-    id: uuid()
-      .default(sql`uuidv7()`)
-      .primaryKey()
-      .notNull(),
-    createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow(),
-    identifier: text().notNull(),
-    ownerId: uuid('owner_id').notNull(),
-    type: deviceType().notNull(),
-    model: text().notNull(),
-    name: text(),
-    status: jsonb(),
-    config: jsonb(),
-  },
-  (table) => [
-    index('idx_devices_owner').using(
-      'btree',
-      table.ownerId.asc().nullsLast().op('uuid_ops'),
-    ),
-    foreignKey({
-      columns: [table.ownerId],
-      foreignColumns: [users.id],
-      name: 'devices_owner_id_fkey',
-    }).onDelete('cascade'),
-    unique('devices_identifier_key').on(table.identifier),
-    check('devices_id_not_null', sql`NOT NULL id`),
-    check('devices_identifier_not_null', sql`NOT NULL identifier`),
-    check('devices_owner_id_not_null', sql`NOT NULL owner_id`),
-    check('devices_type_not_null', sql`NOT NULL type`),
-    check('devices_model_not_null', sql`NOT NULL model`),
-  ],
-)
-
 export const conversations = pgTable(
   'conversations',
   {
     id: text().primaryKey().notNull(),
     userId: uuid('user_id').notNull(),
+    personId: uuid('person_id').notNull(),
     createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
     updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow(),
-    messages: messageData('messages').array().default([]),
+    messages: jsonb().default([]),
     metaData: jsonb('meta_data'),
   },
   (table) => [
-    index('idx_conversations_user').using(
-      'btree',
-      table.userId.asc().nullsLast().op('uuid_ops'),
-    ),
     foreignKey({
       columns: [table.userId],
       foreignColumns: [users.id],
       name: 'conversations_user_id_fkey',
     }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.personId],
+      foreignColumns: [persons.id],
+      name: 'conversations_person_id_fkey',
+    }).onDelete('cascade'),
     check('conversations_id_not_null', sql`NOT NULL id`),
     check('conversations_user_id_not_null', sql`NOT NULL user_id`),
-  ],
-)
-
-export const conversationChats = pgTable(
-  'conversation_chats',
-  {
-    id: text().primaryKey().notNull(),
-    userId: uuid('user_id').notNull(),
-    createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow(),
-    cid: text().notNull(),
-    vid: text().notNull(),
-    additionalMessages: jsonb('additional_messages'),
-    customVariables: jsonb('custom_variables'),
-    metaData: jsonb('meta_data'),
-    extraParams: jsonb('extra_params'),
-    response: jsonb(),
-    type: messageType().notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.userId],
-      foreignColumns: [users.id],
-      name: 'conversation_chats_user_id_fkey',
-    }).onDelete('cascade'),
-    foreignKey({
-      columns: [table.cid],
-      foreignColumns: [conversations.id],
-      name: 'conversation_chats_cid_fkey',
-    }).onDelete('cascade'),
-    check('conversation_chats_id_not_null', sql`NOT NULL id`),
-    check('conversation_chats_user_id_not_null', sql`NOT NULL user_id`),
-    check('conversation_chats_cid_not_null', sql`NOT NULL cid`),
-    check('conversation_chats_vid_not_null', sql`NOT NULL vid`),
-    check('conversation_chats_type_not_null', sql`NOT NULL type`),
-  ],
-)
-
-export const deviceGroupData = pgTable(
-  'device_group_data',
-  {
-    deviceId: uuid('device_id').notNull(),
-    groupId: uuid('group_id').notNull(),
-    createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow(),
-    data: jsonb(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.deviceId],
-      foreignColumns: [devices.id],
-      name: 'device_group_data_device_id_fkey',
-    }).onDelete('cascade'),
-    foreignKey({
-      columns: [table.groupId],
-      foreignColumns: [groups.id],
-      name: 'device_group_data_group_id_fkey',
-    }).onDelete('cascade'),
-    primaryKey({
-      columns: [table.groupId, table.deviceId],
-      name: 'device_group_data_pkey',
-    }),
-    check('device_group_data_device_id_not_null', sql`NOT NULL device_id`),
-    check('device_group_data_group_id_not_null', sql`NOT NULL group_id`),
+    check('conversations_person_id_not_null', sql`NOT NULL person_id`),
   ],
 )
 
@@ -309,6 +234,64 @@ export const groupMembers = pgTable(
   ],
 )
 
+export const deviceGroupData = pgTable(
+  'device_group_data',
+  {
+    deviceId: uuid('device_id').notNull(),
+    groupId: uuid('group_id').notNull(),
+    createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow(),
+    data: jsonb(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.deviceId],
+      foreignColumns: [devices.id],
+      name: 'device_group_data_device_id_fkey',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.groupId],
+      foreignColumns: [groups.id],
+      name: 'device_group_data_group_id_fkey',
+    }).onDelete('cascade'),
+    primaryKey({
+      columns: [table.groupId, table.deviceId],
+      name: 'device_group_data_pkey',
+    }),
+    check('device_group_data_device_id_not_null', sql`NOT NULL device_id`),
+    check('device_group_data_group_id_not_null', sql`NOT NULL group_id`),
+  ],
+)
+
+export const deviceUserData = pgTable(
+  'device_user_data',
+  {
+    deviceId: uuid('device_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow(),
+    data: jsonb(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.deviceId],
+      foreignColumns: [devices.id],
+      name: 'device_user_data_device_id_fkey',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [users.id],
+      name: 'device_user_data_user_id_fkey',
+    }).onDelete('cascade'),
+    primaryKey({
+      columns: [table.userId, table.deviceId],
+      name: 'device_user_data_pkey',
+    }),
+    check('device_user_data_device_id_not_null', sql`NOT NULL device_id`),
+    check('device_user_data_user_id_not_null', sql`NOT NULL user_id`),
+  ],
+)
+
 export const deviceShares = pgTable(
   'device_shares',
   {
@@ -339,34 +322,5 @@ export const deviceShares = pgTable(
     }),
     check('device_shares_device_id_not_null', sql`NOT NULL device_id`),
     check('device_shares_user_id_not_null', sql`NOT NULL user_id`),
-  ],
-)
-
-export const deviceUserData = pgTable(
-  'device_user_data',
-  {
-    deviceId: uuid('device_id').notNull(),
-    userId: uuid('user_id').notNull(),
-    createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow(),
-    data: jsonb(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.deviceId],
-      foreignColumns: [devices.id],
-      name: 'device_user_data_device_id_fkey',
-    }).onDelete('cascade'),
-    foreignKey({
-      columns: [table.userId],
-      foreignColumns: [users.id],
-      name: 'device_user_data_user_id_fkey',
-    }).onDelete('cascade'),
-    primaryKey({
-      columns: [table.userId, table.deviceId],
-      name: 'device_user_data_pkey',
-    }),
-    check('device_user_data_device_id_not_null', sql`NOT NULL device_id`),
-    check('device_user_data_user_id_not_null', sql`NOT NULL user_id`),
   ],
 )

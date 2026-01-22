@@ -1,14 +1,14 @@
 import { log } from '@log'
 
 import {
+  VprDeleteUserResponse,
   VprRecognizeResponse,
   VprRegisterResponse,
-  VprRelationship,
   VprUpdateVoiceRequest,
 } from 'src/api/vpr/types'
 import {
   addVoice,
-  deletePerson,
+  deletePerson, deleteUser,
   deleteVoice,
   getPerson,
   getPersons,
@@ -48,6 +48,10 @@ export class VprApi {
     log.info(`Threshold updated to ${value}`)
   }
 
+  async deleteUser(): Promise<VprDeleteUserResponse> {
+    return await deleteUser(this._userId)
+  }
+
   /**
    * Recognize a person from audio
    * @param audioBase64 Audio file in Base64 format
@@ -69,7 +73,7 @@ export class VprApi {
           confidence: result.data.confidence.toFixed(2),
           similarity: result.data.similarity.toFixed(2),
         },
-        `Recognition successful: ${result.data.person_name}`,
+        `Recognition successful: ${result.data.person_id}`,
       )
     } else {
       log.warn(`Recognition failed or no match: ${result.message}`)
@@ -81,34 +85,26 @@ export class VprApi {
   /**
    * Register a voiceprint for the current user or their contact
    * @param audioBase64 Audio file in Base64 format
-   * @param personName Name of the person
-   * @param relationship Relationship to user (default: "friend")
    * @param isTemporal Whether the enrollment should be treated as temporal (auto-cleanup)
    * @returns Registration result
    */
   async register(
     audioBase64: string,
-    personName = '',
-    relationship: VprRelationship = 'other',
     isTemporal = true,
   ): Promise<VprRegisterResponse> {
-    log.debug(
-      `Registering voice for ${personName} (${relationship}) - User: ${this._userId}`,
-    )
+    log.debug(`Registering new person for user '${this._userId}'`)
 
     const result = await register(this._userId, {
       audio_data: audioBase64,
-      person_name: personName,
-      relationship,
       is_temporal: isTemporal,
     })
 
     if (result.success) {
       log.debug(
-        `Successfully registered ${personName}(person_id: ${result.data.person_id}, voice_id: ${result.data.voice_id})`,
+        `Successfully registered (person_id: ${result.data.person_id}, voice_id: ${result.data.voice_id})`,
       )
     } else {
-      log.error(`Failed to register ${personName}: ${result.message}`)
+      log.error(`Failed to register: ${result.message}`)
     }
 
     return result
@@ -145,23 +141,10 @@ export class VprApi {
   async updatePerson(
     personId: string,
     data: {
-      newName?: string
-      newRelationship?: VprRelationship
-      isTemporal?: boolean
+      isTemporal: boolean
     },
   ) {
-    log.info(data, `Updating person info for ${personId}`)
-    if (
-      !data.newName?.length &&
-      !data.newRelationship &&
-      data.isTemporal === undefined
-    ) {
-      log.warn(`No update data provided for person ${personId}`)
-      return
-    }
     return await updatePerson(this._userId, personId, {
-      person_name: data.newName,
-      relationship: data.newRelationship,
       is_temporal: data.isTemporal,
     })
   }
