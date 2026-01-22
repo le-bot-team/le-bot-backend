@@ -368,6 +368,7 @@ export class ApiWrapper {
         this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64')),
       ).toString('base64')
 
+      // TODO: Register person to Postgres database
       return await this._vprApi.register(combinedAudioBase64)
     } catch (error) {
       log.error(`Error during voice print registration: ${error}`)

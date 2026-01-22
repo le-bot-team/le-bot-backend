@@ -31,19 +31,20 @@ create table user_profiles
     last_login  timestamp
 );
 
+create type person_relationship_type as enum ('friend', 'family', 'friend', 'colleague', 'other');
 create table persons
 (
-    id          uuid not null unique primary key,
-    created_at  timestamp default now(),
-    updated_at  timestamp default now(),
+    id           uuid not null unique primary key,
+    created_at   timestamp default now(),
+    updated_at   timestamp default now(),
 
-    user_id     uuid not null references users (id) on delete cascade,
+    user_id      uuid not null references users (id) on delete cascade,
 
-    name        text,
-    age         int,
-    address     text,
-    relationship text,  -- e.g., friend, family, colleague
-    metadata    jsonb   -- Profile, hobbies, personalities, etc.
+    name         text,
+    age          int,
+    address      text,
+    relationship person_relationship_type default 'other',
+    metadata     jsonb -- Profile, hobbies, personalities, etc.
 );
 
 -- groups tables
