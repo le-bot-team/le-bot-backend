@@ -42,5 +42,5 @@ const app = new Elysia()
   .use(voiceprintRoute)
   .listen(3000)
 
-console.info('')
-log.info(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`)
+log.info(`🦊 ElysiaJS is running at ${app.server?.url}`)
+log.info(`⚡️ Check OpenAPI docs at ${app.server?.url}swagger`)

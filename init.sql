@@ -39,8 +39,8 @@ create table persons
 
     user_id     uuid not null references users (id) on delete cascade,
 
-    name        text not null,
-    age         int not null,
+    name        text,
+    age         int,
     address     text,
     relationship text,  -- e.g., friend, family, colleague
     metadata    jsonb   -- Profile, hobbies, personalities, etc.
