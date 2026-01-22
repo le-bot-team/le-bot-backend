@@ -31,7 +31,7 @@ create table user_profiles
     last_login  timestamp
 );
 
-create type person_relationship_type as enum ('friend', 'family', 'friend', 'colleague', 'other');
+create type person_relationship_type as enum ('self', 'family', 'friend', 'colleague', 'other');
 create table persons
 (
     id           uuid not null unique primary key,
