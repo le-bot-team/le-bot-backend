@@ -33,6 +33,13 @@ export const messageType = pgEnum('message_type', [
   'follow_up',
   'verbose',
 ])
+export const personRelationshipType = pgEnum('person_relationship_type', [
+  'self',
+  'family',
+  'friend',
+  'colleague',
+  'other',
+])
 
 export const devices = pgTable(
   'devices',
@@ -135,10 +142,10 @@ export const persons = pgTable(
     createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
     updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow(),
     userId: uuid('user_id').notNull(),
-    name: text().notNull(),
-    age: integer().notNull(),
+    name: text(),
+    age: integer(),
     address: text(),
-    relationship: text(),
+    relationship: personRelationshipType().default('other'),
     metadata: jsonb(),
   },
   (table) => [
@@ -149,8 +156,6 @@ export const persons = pgTable(
     }).onDelete('cascade'),
     check('persons_id_not_null', sql`NOT NULL id`),
     check('persons_user_id_not_null', sql`NOT NULL user_id`),
-    check('persons_name_not_null', sql`NOT NULL name`),
-    check('persons_age_not_null', sql`NOT NULL age`),
   ],
 )
 
