@@ -1,3 +1,1 @@
-export class ChatApi {
-
-}
+export class ChatApi {}

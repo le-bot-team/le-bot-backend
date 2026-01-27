@@ -325,7 +325,12 @@ export class TtsApi {
   }
 
   get isConnected(): boolean {
-    return !!(this._ws && this._ws.readyState === WebSocket.OPEN && this._connectionId?.length && this._sessionId?.length)
+    return !!(
+      this._ws &&
+      this._ws.readyState === WebSocket.OPEN &&
+      this._connectionId?.length &&
+      this._sessionId?.length
+    )
   }
 
   get isConnecting(): boolean {

@@ -71,7 +71,7 @@ export type VprGetUserPersons =
 
 export type VprDeletePersonResponse = VprEmptyResponse | VprErrorResponse
 
-export type VprGetUserPerson=
+export type VprGetUserPerson =
   | VprErrorResponse
   | {
       success: true

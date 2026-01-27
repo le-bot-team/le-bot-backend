@@ -156,7 +156,7 @@ export type AsrResponse = {
           utterances?: {
             additions: {
               all_matched_hotwords: string
-              fixed_prefix_result: string,
+              fixed_prefix_result: string
             }
             definite: boolean
             end_time: number
