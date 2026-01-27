@@ -1,20 +1,20 @@
 import { and, eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 
-import { VprApi } from '@api/vpr'
-import { authService } from '@auth/service'
-import { voiceprintService } from '@voiceprint/service'
-import { dbInstance } from '@db/plugin'
-import { persons } from '@db/schema'
-import { log } from '@log'
+import { VprApi } from '@/api/vpr'
+import { authService } from '@/auth/service'
+import { db } from '@/database'
+import { persons } from '@/database/schema'
+import { log } from '@/log'
+
+import { voiceprintService } from './service'
 
 export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   .use(authService)
-  .use(dbInstance)
   .use(voiceprintService)
   .post(
     '/recognize',
-    async ({ body, db, userId }) => {
+    async ({ body, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
@@ -51,7 +51,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   )
   .post(
     '/register',
-    async ({ body, db, userId }) => {
+    async ({ body, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
@@ -87,7 +87,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   )
   .get(
     '/persons',
-    async ({ db, userId }) => {
+    async ({ userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
@@ -149,7 +149,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   )
   .get(
     '/persons/:personId',
-    async ({ db, params, userId }) => {
+    async ({ params, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
@@ -186,7 +186,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
   )
   .put(
     '/persons/:personId',
-    async ({ body, db, params, userId }) => {
+    async ({ body, params, userId }) => {
       if (!userId?.length) {
         return { success: false, message: 'Unauthorized' }
       }
@@ -195,10 +195,10 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
 
       const updatePayload: Record<string, unknown> = {}
       if (body.name !== undefined) {
-        updatePayload.name = body.name
+        updatePayload['name'] = body.name
       }
       if (body.relationship !== undefined) {
-        updatePayload.relationship = body.relationship
+        updatePayload['relationship'] = body.relationship
       }
       if (Object.keys(updatePayload).length) {
         const insertResult = await db

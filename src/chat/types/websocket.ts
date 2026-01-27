@@ -1,4 +1,4 @@
-import { wsUpdateConfigRequestValidator } from 'src/chat/validation/websocket'
+import { wsUpdateConfigRequestValidator } from '@/chat/validation/websocket'
 
 export type WsUpdateConfigRequest = typeof wsUpdateConfigRequestValidator.static
 

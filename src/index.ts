@@ -4,12 +4,12 @@ import { swagger } from '@elysiajs/swagger'
 import { env } from '@yolk-oss/elysia-env'
 import { Elysia, t } from 'elysia'
 
-import { authRoute } from '@auth/route'
-import { chatRoute } from '@chat/route'
-import { deviceRoute } from '@device/route'
-import { log } from '@log'
-import { profileRoute } from '@profile/route'
-import { voiceprintRoute } from '@voiceprint/route'
+import { authRoute } from '@/auth/route'
+import { chatRoute } from '@/chat/route'
+import { deviceRoute } from '@/device/route'
+import { log } from '@/log'
+import { profileRoute } from '@/profile/route'
+import { voiceprintRoute } from '@/voiceprint/route'
 
 const app = new Elysia()
   .use(log.into())
@@ -23,6 +23,7 @@ const app = new Elysia()
       APP_ID: t.String({ minLength: 1, description: 'App ID for the bot' }),
       DATABASE_URL: t.String({ description: 'Database connection URL' }),
       SMTP_HOST: t.String({ description: 'SMTP server host' }),
+      SMTP_PORT: t.Number({ description: 'SMTP server port, usually 25' }),
       SMTP_PASSWORD: t.String({ description: 'SMTP server password' }),
       SMTP_USERNAME: t.String({ description: 'SMTP server username' }),
       VPR_URL: t.String({ description: 'Voiceprint Recognition service URL' }),

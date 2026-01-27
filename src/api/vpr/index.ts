@@ -1,14 +1,15 @@
-import { log } from '@log'
+import { log } from '@/log'
 
-import {
+import type {
   VprDeleteUserResponse,
   VprRecognizeResponse,
   VprRegisterResponse,
   VprUpdateVoiceRequest,
-} from 'src/api/vpr/types'
+} from './types'
 import {
   addVoice,
-  deletePerson, deleteUser,
+  deletePerson,
+  deleteUser,
   deleteVoice,
   getPerson,
   getPersons,
@@ -16,7 +17,7 @@ import {
   register,
   updatePerson,
   updateVoice,
-} from 'src/api/vpr/utils'
+} from './utils'
 
 export class VprApi {
   private readonly _userId: string

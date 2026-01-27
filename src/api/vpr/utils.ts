@@ -1,6 +1,6 @@
-import { log } from '@log'
+import { log } from '@/log'
 
-import {
+import type {
   VprAddVoiceRequest,
   VprAddVoiceResponse,
   VprDeletePersonResponse,

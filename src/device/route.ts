@@ -1,19 +1,18 @@
 import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 
-import { dbInstance } from '@db/plugin'
-import { devices } from '@db/schema'
+import { authService } from '@/auth/service'
+import { db } from '@/database'
+import { devices } from '@/database/schema'
 
 import { deviceService } from './service'
-import { authService } from '@auth/service'
 
 export const deviceRoute = new Elysia({ prefix: '/api/v1/device' })
   .use(authService)
   .use(deviceService)
-  .use(dbInstance)
   .get(
     '/mine',
-    async ({ userId, db }) => {
+    async ({ userId }) => {
       if (!userId?.length) {
         return {
           success: false,

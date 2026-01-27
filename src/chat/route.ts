@@ -1,25 +1,24 @@
 import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 
-import { authService } from '@auth/service'
-import { dbInstance } from '@db/plugin'
-import { userProfiles } from '@db/schema'
-import { log } from '@log'
+import { authService } from '@/auth/service'
+import { WsEstablishConnectionResponseSuccess } from '@/chat/types/websocket'
+import { db } from '@/database'
+import { userProfiles } from '@/database/schema'
+import { log } from '@/log'
 
 import { ApiWrapper } from './api'
 import { chatService } from './service'
-import { WsEstablishConnectionResponseSuccess } from '@chat/types/websocket'
 
 export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
   .use(log.into())
   .use(authService)
-  .use(dbInstance)
   .use(chatService)
   .ws('/ws', {
     body: 'wsRequest',
     query: 'wsQuery',
     open: async (ws) => {
-      const { log, query, store, db } = ws.data
+      const { log, query, store } = ws.data
       const userId = store.accessTokenToUserIdMap.get(query.token)
       if (userId === undefined) {
         log.warn({ wsId: ws.id }, 'Unauthorized WsClient connection attempt')

@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
 
-import { log } from '@log'
+import { log } from '@/log'
 
 import {
   emailChallengeValidator,

@@ -1,11 +1,12 @@
 import { Elysia } from 'elysia'
+
 import {
   recognizeValidator,
   registerValidator,
   updatePersonValidator,
   addVoiceValidator,
   updateVoiceValidator,
-} from '@voiceprint/validation'
+} from './validation'
 
 export const voiceprintService = new Elysia({ name: 'voiceprint/service' }).model({
   recognize: recognizeValidator,

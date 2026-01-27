@@ -10,7 +10,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://app:app@postgres:5432/app
+      DATABASE_URL: postgres://lebot:lebot@postgres:5432/lebot
     ports:
       - "3000:3000"
     networks:
@@ -22,15 +22,14 @@ services:
     image: postgres:18
     restart: unless-stopped
     environment:
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: app
-      POSTGRES_DB: app
+      POSTGRES_USER: lebot
+      POSTGRES_PASSWORD: lebot
+      POSTGRES_DB: lebot
       POSTGRES_INITDB_ARGS: "--data-checksums"
     networks:
       - internal
     volumes:
       - pgdata:/var/lib/postgresql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 10s

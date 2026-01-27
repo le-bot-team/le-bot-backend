@@ -1,17 +1,16 @@
 import { ElysiaWS } from 'elysia/ws'
 
+import { VprApi } from '@/api/vpr'
 import {
   WsChatCompleteResponseSuccess,
   WsOutputAudioCompleteResponseSuccess,
   WsOutputAudioStreamResponseSuccess,
   WsOutputTextCompleteResponseSuccess,
   WsOutputTextStreamResponseSuccess,
-  WsUpdateConfigRequest,
+  type WsUpdateConfigRequest,
   WsUpdateConfigResponseSuccess,
-} from 'src/chat/types/websocket'
-
-import { VprApi } from '@api/vpr'
-import { log } from '@log'
+} from '@/chat/types/websocket'
+import { log } from '@/log'
 
 import { DifyApi } from './dify'
 import { AsrApi, TtsApi } from './openspeech'

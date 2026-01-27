@@ -2,18 +2,17 @@ import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 import nodemailer from 'nodemailer'
 
-import { dbInstance } from '@db/plugin'
-import { userProfiles, users } from '@db/schema'
-import { log } from '@log'
+import { db } from '@/database'
+import { userProfiles, users } from '@/database/schema'
+import { log } from '@/log'
 
 import { authService } from './service'
 
 export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
   .use(authService)
-  .use(dbInstance)
   .post(
     '/email/code',
-    async ({ body: { email, code }, db, store }) => {
+    async ({ body: { email, code }, store }) => {
       const storedCode = store.emailToCodeMap.get(email)
       if (!storedCode || storedCode !== code) {
         return {
@@ -95,7 +94,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
       store.emailToCodeMap.set(email, code)
       try {
         const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
+          host: Bun.env.SMTP_HOST,
           port: Number(process.env.SMTP_PORT),
           auth: {
             user: process.env.SMTP_USERNAME,
@@ -125,7 +124,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
   )
   .post(
     '/email/password',
-    async ({ body: { email, password }, db, store }) => {
+    async ({ body: { email, password }, store }) => {
       const selectedUsersResult = await db
         .select()
         .from(users)
@@ -167,7 +166,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
   )
   .post(
     '/email/reset',
-    async ({ body: { email, code, newPassword }, db, store }) => {
+    async ({ body: { email, code, newPassword }, store }) => {
       const storedCode = store.emailToCodeMap.get(email)
       if (!storedCode || storedCode !== code) {
         return {

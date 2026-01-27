@@ -1,9 +1,10 @@
-import { dbInstance } from '@db/plugin'
-import { userProfiles } from '@db/schema'
 import { eq } from 'drizzle-orm'
+import { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import Elysia from 'elysia'
 
-import { authService } from '@auth/service'
+import { authService } from '@/auth/service'
+import { db } from '@/database'
+import { userProfiles } from '@/database/schema'
 
 import { profileService } from './service'
 import {
@@ -11,12 +12,7 @@ import {
   updateProfileInfoValidator,
 } from './validation'
 
-import { NodePgDatabase } from 'drizzle-orm/node-postgres'
-
-const getUserProfileById = async (
-  db: NodePgDatabase,
-  id: string,
-) => {
+const getUserProfileById = async (db: NodePgDatabase, id: string) => {
   const selectedUsersResult = await db
     .select()
     .from(userProfiles)
@@ -30,10 +26,9 @@ const getUserProfileById = async (
 export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
   .use(authService)
   .use(profileService)
-  .use(dbInstance)
   .get(
     '/avatar',
-    async ({ query: { id }, db, userId }) => {
+    async ({ query: { id }, userId }) => {
       const targetId = id ?? userId
       if (!targetId?.length) {
         return {
@@ -64,7 +59,7 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
   )
   .get(
     '/info',
-    async ({ query: { id }, db, userId }) => {
+    async ({ query: { id }, userId }) => {
       const targetId = id ?? userId
       if (!targetId?.length) {
         return {
@@ -99,7 +94,7 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
   )
   .put(
     '/info',
-    async ({ body, db, userId }) => {
+    async ({ body, userId }) => {
       if (!userId?.length) {
         return {
           success: false,

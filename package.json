@@ -7,10 +7,15 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts | pino-pretty -c -t SYS:standard -S",
     "build": "bun build --compile --minify-whitespace --minify-syntax --target bun --outfile server src/index.ts",
-    "docker-dev:up": "docker compose -f compose.dev.yaml up --build --force-recreate -d",
+    "docker-dev:create": "docker compose -f compose.dev.yaml up --build --force-recreate -d",
+    "docker-dev:up": "docker compose -f compose.dev.yaml up -d",
     "docker-dev:stop": "docker compose -f compose.dev.yaml down",
-    "docker-dev:clear": "bun run docker-dev:stop && docker volume rm -f le-bot-backend_pgdata",
-    "docker-dev:fresh": "bun run docker-dev:clear && bun run docker-dev:up"
+    "docker-dev:remove": "docker compose -f compose.dev.yaml down -v",
+    "docker-dev:recreate": "bun docker-dev:remove && bun docker-dev:create",
+    "migration:generate": "bun --bun drizzle-kit generate --config ./drizzle.config.ts",
+    "migration:check": "bun migration:generate && bun --bun drizzle-kit check --config ./drizzle.config.ts",
+    "migration:push": "bun --bun drizzle-kit push --config ./drizzle.config.ts",
+    "migration:pull": "bun --bun drizzle-kit pull --config ./drizzle.config.ts"
   },
   "dependencies": {
     "@bogeychan/elysia-logger": "^0.1.8",
