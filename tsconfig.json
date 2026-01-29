@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "lib": ["DOM", "ESNext"],
+    "lib": ["ESNext"],
     "jsx": "react-jsx",
     "moduleDetection": "force",
-    "module": "ESNext",
+    "module": "Preserve",
     "moduleResolution": "bundler",
     "baseUrl": "./",
     "paths": {
@@ -24,8 +24,10 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "noImplicitAny": true,
+    "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
     "skipLibCheck": true
   }
 }
