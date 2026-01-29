@@ -1,34 +1,43 @@
-import js from '@eslint/js';
-import json from '@eslint/json';
-import markdown from '@eslint/markdown';
-import { defineConfig } from 'eslint/config';
-import eslintConfigPrettier from 'eslint-config-prettier/flat';
-import globals from 'globals';
-import tsEslint from 'typescript-eslint';
+import globals from 'globals'
+import pluginJs from '@eslint/js'
+import tseslint from 'typescript-eslint'
+import prettierConfig from 'eslint-config-prettier'
 
-export default defineConfig([
+/**
+ * ESLint flat config for Bun + Elysia (TypeScript).
+ * - Bun/Node globals
+ * - JS + TS recommended rules
+ * - Light TS ergonomics tuning
+ */
+export default [
   {
-    files: ['**/*.{js,mjs,cjs,ts}'],
-    plugins: { js },
-    extends: ['js/recommended'],
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'build/**',
+      'coverage/**',
+      '.idea/**',
+    ],
   },
+  pluginJs.configs.recommended,
+  ...tseslint.configs.recommended,
   {
-    files: ['**/*.{js,mjs,cjs,ts}'],
-    languageOptions: { globals: globals.browser },
+    files: ['**/*.{js,mjs,cjs,ts,mts,cts}'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+        ...globals.bun,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+    },
   },
-  tsEslint.configs.strict,
-  tsEslint.configs.stylistic,
-  {
-    files: ['**/*.jsonc'],
-    plugins: { json },
-    language: 'json/jsonc',
-    extends: ['json/recommended'],
-  },
-  {
-    files: ['**/*.md'],
-    plugins: { markdown },
-    language: 'markdown/commonmark',
-    extends: ['markdown/recommended'],
-  },
-  eslintConfigPrettier,
-]);
+  prettierConfig,
+]

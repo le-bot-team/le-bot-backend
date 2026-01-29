@@ -1,15 +1,18 @@
-import { cors } from '@elysiajs/cors'
-import { staticPlugin } from '@elysiajs/static'
-import { swagger } from '@elysiajs/swagger'
-import { env } from '@yolk-oss/elysia-env'
 import { Elysia, t } from 'elysia'
+import { cors } from '@elysiajs/cors'
+import { fromTypes, openapi } from '@elysiajs/openapi'
+import { staticPlugin } from '@elysiajs/static'
+import { env } from '@yolk-oss/elysia-env'
 
+import packageJson from 'package.json'
 import { authRoute } from '@/auth/route'
 import { chatRoute } from '@/chat/route'
 import { deviceRoute } from '@/device/route'
 import { log } from '@/log'
 import { profileRoute } from '@/profile/route'
 import { voiceprintRoute } from '@/voiceprint/route'
+
+const staticFilesPrefix = '/public'
 
 const app = new Elysia()
   .use(log.into())
@@ -29,18 +32,38 @@ const app = new Elysia()
       VPR_URL: t.String({ description: 'Voiceprint Recognition service URL' }),
     }),
   )
+  .use(
+    openapi({
+      documentation: {
+        info: {
+          title: 'Lebot API',
+          version: packageJson.version,
+          description:
+            'This is the API documentation for Snapmaker Farm, ' +
+            'a management system for Snapmaker 3D printers and devices.',
+        },
+      },
+      exclude: {
+        paths: [`${staticFilesPrefix}/*`],
+      },
+      references: fromTypes(
+        process.env.NODE_ENV === 'production'
+          ? 'dist/index.d.ts'
+          : 'src/index.ts',
+      ),
+    }),
+  )
+  .use(staticPlugin({ prefix: staticFilesPrefix }))
   .use(cors())
-  .use(staticPlugin())
-  .use(swagger())
-  .onError((ctx) => {
-    ctx.log?.error(ctx, ctx.error.toString())
-    return 'onError'
-  })
   .use(authRoute)
   .use(chatRoute)
   .use(deviceRoute)
   .use(profileRoute)
   .use(voiceprintRoute)
+  .onError((ctx) => {
+    ctx.log?.error(ctx, ctx.error.toString())
+    return 'onError'
+  })
   .listen(3000)
 
 log.info(`🦊 ElysiaJS is running at ${app.server?.url}`)
