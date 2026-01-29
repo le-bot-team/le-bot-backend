@@ -43,9 +43,9 @@ yarn-error.log*
 package-lock.json
 **/*.bun
 
-# repo/tooling
-/.git
-/.gitignore
+# lockfiles
 /bun.lock
+
+# prettier-specific
+/dist
 /.idea
-/.vscode
