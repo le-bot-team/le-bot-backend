@@ -21,18 +21,19 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
         }
       }
 
-      const selectedUsersResult = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-      if (!selectedUsersResult.length) {
-        const insertResult = await db
-          .insert(users)
-          .values({
-            email,
-          })
-          .returning({ id: users.id })
-        if (!insertResult.length) {
+      const selectedUser = (
+        await db.select().from(users).where(eq(users.email, email)).limit(1)
+      )[0]
+      if (!selectedUser) {
+        const insertedUser = (
+          await db
+            .insert(users)
+            .values({
+              email,
+            })
+            .returning({ id: users.id })
+        )[0]
+        if (!insertedUser) {
           return {
             success: false,
             message: 'Failed to create user',
@@ -43,7 +44,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
             await db
               .insert(userProfiles)
               .values({
-                id: insertResult[0].id,
+                id: insertedUser.id,
               })
               .returning({ id: users.id })
           ).length
@@ -56,7 +57,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
 
         const accessToken = Bun.randomUUIDv7()
         store.accessTokenCreatedAtMap.set(accessToken, new Date())
-        store.accessTokenToUserIdMap.set(accessToken, insertResult[0].id)
+        store.accessTokenToUserIdMap.set(accessToken, insertedUser.id)
         return {
           success: true,
           data: {
@@ -66,19 +67,18 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
           },
         }
       } else {
-        const user = selectedUsersResult[0]
-        if (user.passwordHash?.length) {
+        if (selectedUser.passwordHash?.length) {
           store.emailToCodeMap.delete(storedCode)
         }
         const accessToken = Bun.randomUUIDv7()
         store.accessTokenCreatedAtMap.set(accessToken, new Date())
-        store.accessTokenToUserIdMap.set(accessToken, user.id)
+        store.accessTokenToUserIdMap.set(accessToken, selectedUser.id)
         return {
           success: true,
           data: {
             accessToken,
             isNew: false,
-            noPassword: !user.passwordHash?.length,
+            noPassword: !selectedUser.passwordHash?.length,
           },
         }
       }
@@ -125,24 +125,22 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
   .post(
     '/email/password',
     async ({ body: { email, password }, store }) => {
-      const selectedUsersResult = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-      if (!selectedUsersResult.length) {
+      const selectedUser = (
+        await db.select().from(users).where(eq(users.email, email)).limit(1)
+      )[0]
+      if (!selectedUser) {
         return {
           success: false,
           message: 'User not found',
         }
       }
-      const user = selectedUsersResult[0]
-      if (!user.passwordHash?.length) {
+      if (!selectedUser.passwordHash?.length) {
         return {
           success: false,
           message: 'No password set, please use code to sign in',
         }
       }
-      if (!(await Bun.password.verify(password, user.passwordHash))) {
+      if (!(await Bun.password.verify(password, selectedUser.passwordHash))) {
         return {
           success: false,
           message: 'Invalid password',
@@ -150,7 +148,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
       }
       const accessToken = Bun.randomUUIDv7()
       store.accessTokenCreatedAtMap.set(accessToken, new Date())
-      store.accessTokenToUserIdMap.set(accessToken, user.id)
+      store.accessTokenToUserIdMap.set(accessToken, selectedUser.id)
 
       log.info({ accessToken }, 'Access Token:')
       return {
@@ -174,17 +172,15 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
           message: 'Invalid code',
         }
       }
-      const selectedUsersResult = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-      if (!selectedUsersResult.length) {
+      const selectedUser = (
+        await db.select().from(users).where(eq(users.email, email))
+      )[0]
+      if (!selectedUser) {
         return {
           success: false,
           message: 'User not found',
         }
       }
-      const user = selectedUsersResult[0]
       const updateResult = await db
         .update(users)
         .set({
@@ -192,7 +188,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
             algorithm: 'bcrypt',
           }),
         })
-        .where(eq(users.id, user.id))
+        .where(eq(users.id, selectedUser.id))
         .returning({ id: users.id })
       if (!updateResult.length) {
         return {

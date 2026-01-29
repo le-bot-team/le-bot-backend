@@ -25,19 +25,20 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
         ws.close(1008, 'Unauthorized')
         return
       }
-      const selectedUsersResult = await db
+      const selectedUser = (await db
         .select()
         .from(userProfiles)
-        .where(eq(userProfiles.id, userId))
-      if (!selectedUsersResult.length) {
+        .where(eq(userProfiles.id, userId)).limit(1))[0]
+      if (!selectedUser) {
         log.warn({ userId, wsId: ws.id }, 'User not found for WsClient')
         ws.close(1008, 'User not found')
+        return
       }
       log.debug({ userId, wsId: ws.id }, 'WsClient opened')
       store.wsIdToUserIdMap.set(ws.id, userId)
       store.wsIdToApiWrapperMap.set(
         ws.id,
-        new ApiWrapper(ws, userId, selectedUsersResult[0].nickname ?? '', ''),
+        new ApiWrapper(ws, userId, selectedUser.nickname ?? '', ''),
       )
       ws.send(new WsEstablishConnectionResponseSuccess(ws.id))
     },

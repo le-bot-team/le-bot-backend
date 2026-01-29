@@ -1,10 +1,13 @@
 import { RESPONSES_FOR_UNRECOGNIZED_ASR } from './dify/constants'
 
-export const getResponseForUnrecognizedAsr = () => {
+export const getResponseForUnrecognizedAsr = (): string => {
   const randomIndex = Math.floor(
     Math.random() * RESPONSES_FOR_UNRECOGNIZED_ASR.length,
   )
-  return RESPONSES_FOR_UNRECOGNIZED_ASR[randomIndex]
+  return (
+    RESPONSES_FOR_UNRECOGNIZED_ASR[randomIndex] ??
+    '抱歉，我没听清楚，请您再重复一遍好吗？'
+  )
 }
 
 export const isValidTimezone = (timezone: string) => {

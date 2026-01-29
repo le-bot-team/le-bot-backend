@@ -1,9 +1,9 @@
 import { gzip, ungzip } from 'pako'
 import {
-  AsrRequest,
-  AsrResponse,
+  type AsrRequest,
+  type AsrResponse,
   CompressionType,
-  ErrorResponse,
+  type ErrorResponse,
   ErrorType,
   HeaderSizeType,
   MessageFlagType,
@@ -12,8 +12,8 @@ import {
   ResponseType,
   SerializationType,
   TtsEventType,
-  TtsRequest,
-  TtsResponse,
+  type TtsRequest,
+  type TtsResponse,
 } from './types'
 
 /*
@@ -227,12 +227,8 @@ export const serializeRequestMessage = (
   view.setUint8(3, 0)
   view.setUint32(4, extraCode)
 
-  for (
-    let index = 0, currentOffset = 8;
-    index < payloadBytesList.length;
-    index++
-  ) {
-    const payloadBytes = payloadBytesList[index]
+  let currentOffset = 8
+  for (const payloadBytes of payloadBytesList) {
     view.setUint32(currentOffset, payloadBytes.length)
     currentOffset += 4
     new Uint8Array(buffer, currentOffset).set(payloadBytes)

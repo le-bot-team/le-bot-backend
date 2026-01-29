@@ -23,11 +23,14 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
       if (!result.success) {
         return result
       }
-      const selectPersonsResult = await db
-        .select()
-        .from(persons)
-        .where(eq(persons.id, result.data.person_id))
-      if (!selectPersonsResult.length) {
+      const selectPerson = (
+        await db
+          .select()
+          .from(persons)
+          .where(eq(persons.id, result.data.person_id))
+          .limit(1)
+      )[0]
+      if (!selectPerson) {
         // Remove person_id since person not found in DB
         await vprApi.deletePerson(result.data.person_id)
         return { success: false, message: 'Person not found in database' }
@@ -36,11 +39,11 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
         success: true,
         data: {
           ...result.data,
-          name: selectPersonsResult[0].name,
-          age: selectPersonsResult[0].age,
-          address: selectPersonsResult[0].address,
-          relationship: selectPersonsResult[0].relationship,
-          metadata: selectPersonsResult[0].metadata,
+          name: selectPerson.name,
+          age: selectPerson.age,
+          address: selectPerson.address,
+          relationship: selectPerson.relationship,
+          metadata: selectPerson.metadata,
         },
       }
     },
@@ -61,14 +64,17 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
         return result
       }
 
-      const insertResult = await db.insert(persons).values({
-        id: result.data.person_id,
-        userId: userId,
-        name: body.name,
-        age: body.age,
-        address: body.address,
-        relationship: body.relationship,
-      })
+      const insertResult = await db
+        .insert(persons)
+        .values({
+          id: result.data.person_id,
+          userId: userId,
+          name: body.name,
+          age: body.age,
+          address: body.address,
+          relationship: body.relationship,
+        })
+        .returning()
       if (!insertResult.length) {
         // Rollback VPR person creation
         await vprApi.deletePerson(result.data.person_id)
@@ -158,11 +164,15 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
       if (!result.success) {
         return result
       }
-      const selectPersonsResult = await db
-        .select()
-        .from(persons)
-        .where(and(eq(persons.userId, userId), eq(persons.id, params.personId)))
-      if (!selectPersonsResult.length) {
+      const selectPerson = (
+        await db
+          .select()
+          .from(persons)
+          .where(
+            and(eq(persons.userId, userId), eq(persons.id, params.personId)),
+          )
+      )[0]
+      if (!selectPerson) {
         // Remove person from VPR since not found in DB
         await vprApi.deletePerson(params.personId)
         return { success: false, message: 'Person not found in database' }
@@ -172,11 +182,11 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
         success: true,
         data: {
           ...result.data,
-          name: selectPersonsResult[0].name,
-          age: selectPersonsResult[0].age,
-          address: selectPersonsResult[0].address,
-          relationship: selectPersonsResult[0].relationship,
-          metadata: selectPersonsResult[0].metadata,
+          name: selectPerson.name,
+          age: selectPerson.age,
+          address: selectPerson.address,
+          relationship: selectPerson.relationship,
+          metadata: selectPerson.metadata,
         },
       }
     },
@@ -207,6 +217,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint' })
           .where(
             and(eq(persons.id, params.personId), eq(persons.userId, userId)),
           )
+          .returning()
         if (!insertResult.length) {
           failedMessage += 'Failed to update person metadata in database'
         }
