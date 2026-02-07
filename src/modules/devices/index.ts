@@ -1,13 +1,13 @@
 import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 
-import { authService } from '@/auth/service'
+import { authService } from '@/modules/auth/service'
 import { db } from '@/database'
 import { devices } from '@/database/schema'
 
 import { deviceService } from './service'
 
-export const deviceRoute = new Elysia({ prefix: '/api/v1/device' })
+export const deviceRoute = new Elysia({ prefix: '/api/v1/devices' })
   .use(authService)
   .use(deviceService)
   .get(

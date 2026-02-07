@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia'
-import { ownerDevicesValidation } from 'src/device/validation/user'
+import { ownerDevicesValidation } from './model'
 
 export const deviceService = new Elysia({ name: 'device/service' }).model({
   ownerDevices: ownerDevicesValidation,
