@@ -25,7 +25,7 @@ import type {
 export const getUsers = async (): Promise<VprGetUsersResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users`,
       {
         method: 'GET',
       },
@@ -57,7 +57,7 @@ export const deleteUser = async (
 ): Promise<VprDeleteUserResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}`,
       {
         method: 'DELETE',
       },
@@ -91,7 +91,7 @@ export const recognize = async (
 ): Promise<VprRecognizeResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/recognize`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/recognize`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -127,7 +127,7 @@ export const register = async (
 ): Promise<VprRegisterResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/register`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/register`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -161,7 +161,7 @@ export const getPersons = async (
 ): Promise<VprGetUserPersons> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/persons`,
       {
         method: 'GET',
       },
@@ -195,7 +195,7 @@ export const deletePerson = async (
 ): Promise<VprDeletePersonResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}`,
       {
         method: 'DELETE',
       },
@@ -229,7 +229,7 @@ export const getPerson = async (
 ): Promise<VprGetUserPerson> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}`,
       {
         method: 'GET',
       },
@@ -265,7 +265,7 @@ export const updatePerson = async (
 ): Promise<VprUpdatePersonResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -303,7 +303,7 @@ export const deleteVoice = async (
 ): Promise<VprDeleteVoiceResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}/voices/${voiceId}`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}/voices/${voiceId}`,
       {
         method: 'DELETE',
       },
@@ -333,7 +333,7 @@ export const addVoice = async (
 ): Promise<VprAddVoiceResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}/voices/add`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}/voices/add`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -373,7 +373,7 @@ export const updateVoice = async (
 ): Promise<VprUpdateVoiceResponse> => {
   try {
     const response = await Bun.fetch(
-      `${process.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}/voices/${voiceId}`,
+      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}/voices/${voiceId}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

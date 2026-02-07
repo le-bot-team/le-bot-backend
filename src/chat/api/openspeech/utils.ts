@@ -1,4 +1,3 @@
-import { gzip, ungzip } from 'pako'
 import {
   type AsrRequest,
   type AsrResponse,
@@ -112,7 +111,9 @@ export const parseResponseMessage = (
         const dataBytes =
           compressionType === CompressionType.gzip
             ? new Uint8Array(
-                ungzip(payload.slice(dataOffset, dataOffset + dataLength)),
+                Bun.gunzipSync(
+                  payload.slice(dataOffset, dataOffset + dataLength),
+                ),
               )
             : new Uint8Array(payload, dataOffset, dataLength)
         return {
@@ -157,7 +158,7 @@ export const parseResponseMessage = (
   const dataBytes =
     compressionType === CompressionType.gzip
       ? new Uint8Array(
-          ungzip(payload.slice(dataOffset, dataOffset + dataLength)),
+          Bun.gunzipSync(payload.slice(dataOffset, dataOffset + dataLength)),
         )
       : new Uint8Array(payload, dataOffset, dataLength)
 
@@ -201,9 +202,9 @@ export const serializeRequestMessage = (
 ): ArrayBuffer => {
   const payloadBytesList: Uint8Array[] = []
   for (const payload of payloads) {
-    let payloadBytes: Uint8Array
+    let payloadBytes: Uint8Array<ArrayBuffer>
     if (payload instanceof Uint8Array) {
-      payloadBytes = payload
+      payloadBytes = new Uint8Array(payload)
     } else if (typeof payload === 'object') {
       payloadBytes = new TextEncoder().encode(JSON.stringify(payload))
     } else {
@@ -211,7 +212,7 @@ export const serializeRequestMessage = (
     }
 
     if (compressionType === CompressionType.gzip) {
-      payloadBytes = new Uint8Array(gzip(payloadBytes))
+      payloadBytes = new Uint8Array(Bun.gzipSync(payloadBytes))
     }
     payloadBytesList.push(payloadBytes)
   }

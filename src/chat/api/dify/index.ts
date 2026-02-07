@@ -37,11 +37,11 @@ export class DifyApi {
       .split('/')
 
     const response = await Bun.fetch(
-      `${process.env.DIFY_URL}/v1/chat-messages`,
+      `${Bun.env.DIFY_URL}/v1/chat-messages`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${process.env.DIFY_API_KEY}`,
+          Authorization: `Bearer ${Bun.env.DIFY_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

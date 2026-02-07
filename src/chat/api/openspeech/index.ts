@@ -87,8 +87,8 @@ export class AsrApi {
         'wss://openspeech.bytedance.com/api/v3/sauc/bigmodel',
         {
           headers: {
-            'X-Api-Access-Key': process.env.OPENSPEECH_ACCESS_TOKEN,
-            'X-Api-App-Key': process.env.APP_ID,
+            'X-Api-Access-Key': Bun.env.OPENSPEECH_ACCESS_TOKEN,
+            'X-Api-App-Key': Bun.env.APP_ID,
             'X-Api-Resource-Id': 'volc.bigasr.sauc.duration',
             'X-Api-Connect-Id': this._connectId,
           },
@@ -352,8 +352,8 @@ export class TtsApi {
         'wss://openspeech.bytedance.com/api/v3/tts/bidirection',
         {
           headers: {
-            'X-Api-Access-Key': process.env.OPENSPEECH_ACCESS_TOKEN,
-            'X-Api-App-Key': process.env.APP_ID,
+            'X-Api-Access-Key': Bun.env.OPENSPEECH_ACCESS_TOKEN,
+            'X-Api-App-Key': Bun.env.APP_ID,
             'X-Api-Resource-Id': 'volc.service_type.10029',
             'X-Api-Connect-Id': this._connectId,
           },

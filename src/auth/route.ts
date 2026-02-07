@@ -95,10 +95,10 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth' })
       try {
         const transporter = nodemailer.createTransport({
           host: Bun.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT),
+          port: Number(Bun.env.SMTP_PORT),
           auth: {
-            user: process.env.SMTP_USERNAME,
-            pass: process.env.SMTP_PASSWORD,
+            user: Bun.env.SMTP_USERNAME,
+            pass: Bun.env.SMTP_PASSWORD,
           },
         })
         await transporter.sendMail({

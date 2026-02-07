@@ -18,13 +18,20 @@ const app = new Elysia()
   .use(log.into())
   .use(
     env({
+      APP_ID: t.String({ minLength: 1, description: 'App ID for the bot' }),
+      DATABASE_URL: t.String({
+        default: 'postgresql://lebot:lebot@localhost:5432/lebot',
+        description: 'Database connection URL',
+      }),
       OPENSPEECH_ACCESS_TOKEN: t.String({
         minLength: 32,
         maxLength: 32,
         description: 'Access token for the bot',
       }),
-      APP_ID: t.String({ minLength: 1, description: 'App ID for the bot' }),
-      DATABASE_URL: t.String({ description: 'Database connection URL' }),
+      REDIS_URL: t.String({
+        default: 'redis://localhost:6379',
+        description: 'Redis connection URL',
+      }),
       SMTP_HOST: t.String({ description: 'SMTP server host' }),
       SMTP_PORT: t.Number({ description: 'SMTP server port, usually 25' }),
       SMTP_PASSWORD: t.String({ description: 'SMTP server password' }),
@@ -39,15 +46,15 @@ const app = new Elysia()
           title: 'Lebot API',
           version: packageJson.version,
           description:
-            'This is the API documentation for Snapmaker Farm, ' +
-            'a management system for Snapmaker 3D printers and devices.',
+            'This is the API documentation for the backend of Lebot, ' +
+            'a companion ai robot.',
         },
       },
       exclude: {
         paths: [`${staticFilesPrefix}/*`],
       },
       references: fromTypes(
-        process.env.NODE_ENV === 'production'
+        Bun.env.NODE_ENV === 'production'
           ? 'dist/index.d.ts'
           : 'src/index.ts',
       ),

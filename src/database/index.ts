@@ -1,12 +1,7 @@
-import { drizzle } from 'drizzle-orm/node-postgres'
+import { drizzle } from 'drizzle-orm/bun-sql'
 import { sql } from 'drizzle-orm'
 
-export const db = drizzle({
-  connection: {
-    connectionString: process.env['DATABASE_URL'],
-    ssl: false,
-  },
-})
+export const db = drizzle(Bun.env['DATABASE_URL'])
 
 export const checkDbConnection = async () => {
   try {
