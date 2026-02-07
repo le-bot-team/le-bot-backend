@@ -5,12 +5,12 @@ import { staticPlugin } from '@elysiajs/static'
 import { env } from '@yolk-oss/elysia-env'
 
 import packageJson from 'package.json'
-import { authRoute } from '@/auth/route'
-import { chatRoute } from '@/chat/route'
-import { deviceRoute } from '@/device/route'
 import { log } from '@/log'
-import { profileRoute } from '@/profile/route'
-import { voiceprintRoute } from '@/voiceprint/route'
+import { authRoute } from '@/modules/auth'
+import { chatRoute } from '@/modules/chat'
+import { deviceRoute } from '@/modules/devices'
+import { profileRoute } from '@/modules/profiles'
+import { voiceprintRoute } from '@/modules/voiceprint'
 
 const staticFilesPrefix = '/public'
 
@@ -46,18 +46,13 @@ const app = new Elysia()
           title: 'Lebot API',
           version: packageJson.version,
           description:
-            'This is the API documentation for the backend of Lebot, ' +
-            'a companion ai robot.',
+            'This is the API documentation for the backend of Lebot, ' + 'a companion ai robot.',
         },
       },
       exclude: {
         paths: [`${staticFilesPrefix}/*`],
       },
-      references: fromTypes(
-        Bun.env.NODE_ENV === 'production'
-          ? 'dist/index.d.ts'
-          : 'src/index.ts',
-      ),
+      references: fromTypes(Bun.env.NODE_ENV === 'production' ? 'dist/index.d.ts' : 'src/index.ts'),
     }),
   )
   .use(staticPlugin({ prefix: staticFilesPrefix }))
