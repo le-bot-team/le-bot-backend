@@ -6,7 +6,7 @@ import {
   updatePersonValidator,
   addVoiceValidator,
   updateVoiceValidator,
-} from './validation'
+} from './model'
 
 export const voiceprintService = new Elysia({
   name: 'voiceprint/service',

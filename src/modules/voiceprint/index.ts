@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 
 import { VprApi } from '@/api/vpr'
-import { authService } from '@/auth/service'
+import { authService } from '@/modules/auth/service'
 import { db } from '@/database'
 import { persons } from '@/database/schema'
 import { log } from '@/log'
