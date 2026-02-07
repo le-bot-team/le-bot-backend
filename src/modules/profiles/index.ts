@@ -1,18 +1,18 @@
 import { eq } from 'drizzle-orm'
-import { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import { BunSQLDatabase } from 'drizzle-orm/bun-sql'
 import Elysia from 'elysia'
 
-import { authService } from '@/auth/service'
+import { authService } from '@/modules/auth/service'
 import { db } from '@/database'
 import { userProfiles } from '@/database/schema'
 
-import { profileService } from './service'
 import {
   retrieveProfileInfoValidator,
   updateProfileInfoValidator,
-} from './validation'
+} from './model'
+import { profileService } from './service'
 
-const getUserProfileById = async (db: NodePgDatabase, id: string) => {
+const getUserProfileById = async (db: BunSQLDatabase, id: string) => {
   const selectedUsersResult = await db
     .select()
     .from(userProfiles)
@@ -23,7 +23,7 @@ const getUserProfileById = async (db: NodePgDatabase, id: string) => {
   return selectedUsersResult[0]
 }
 
-export const profileRoute = new Elysia({ prefix: '/api/v1/profile' })
+export const profileRoute = new Elysia({ prefix: '/api/v1/profiles' })
   .use(authService)
   .use(profileService)
   .get(
