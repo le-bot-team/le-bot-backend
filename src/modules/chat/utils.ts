@@ -1,4 +1,4 @@
-import { RESPONSES_FOR_UNRECOGNIZED_ASR } from './dify/constants'
+import { RESPONSES_FOR_UNRECOGNIZED_ASR } from '@/api/dify/constants'
 
 export const getResponseForUnrecognizedAsr = (): string => {
   const randomIndex = Math.floor(

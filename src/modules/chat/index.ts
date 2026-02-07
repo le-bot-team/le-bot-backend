@@ -1,26 +1,24 @@
 import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 
-import { authService } from '@/auth/service'
-import { WsEstablishConnectionResponseSuccess } from '@/chat/types/websocket'
 import { db } from '@/database'
 import { userProfiles } from '@/database/schema'
 import { log } from '@/log'
+import { getUserIdByAccessToken } from '@/modules/auth/service'
 
-import { ApiWrapper } from './api'
+import { WsEstablishConnectionResponseSuccess } from './types'
+import { ApiWrapper } from './wrapper'
 import { chatService } from './service'
 
 export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
-  .use(log.into())
-  .use(authService)
   .use(chatService)
   .ws('/ws', {
     body: 'wsRequest',
     query: 'wsQuery',
     open: async (ws) => {
-      const { log, query, store } = ws.data
-      const userId = store.accessTokenToUserIdMap.get(query.token)
-      if (userId === undefined) {
+      const { query, store } = ws.data
+      const userId = await getUserIdByAccessToken(query.token)
+      if (!userId) {
         log.warn({ wsId: ws.id }, 'Unauthorized WsClient connection attempt')
         ws.close(1008, 'Unauthorized')
         return
@@ -43,7 +41,7 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
       ws.send(new WsEstablishConnectionResponseSuccess(ws.id))
     },
     close: (ws) => {
-      const { log, store } = ws.data
+      const { store } = ws.data
       const apiWrapper = store.wsIdToApiWrapperMap.get(ws.id)
       if (apiWrapper) {
         apiWrapper.destroy()
@@ -54,7 +52,7 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
       log.debug({ userId, wsId: ws.id }, 'WsClient closed')
     },
     message: async (ws, message) => {
-      const { log, store } = ws.data
+      const { store } = ws.data
       const userId = store.wsIdToUserIdMap.get(ws.id)
       if (!userId) {
         log.warn({ wsId: ws.id }, 'Unauthorized WsClient message attempt')

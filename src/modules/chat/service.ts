@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia'
 
-import { ApiWrapper } from './api'
-import { wsRequestValidator, wsQueryValidator } from './validation/websocket'
+import { ApiWrapper } from './wrapper'
+import { wsRequestValidator, wsQueryValidator } from './model'
 
 export const chatService = new Elysia({ name: 'chat/service' })
   .model({

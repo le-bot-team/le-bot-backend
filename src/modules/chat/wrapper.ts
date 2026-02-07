@@ -1,6 +1,10 @@
 import { ElysiaWS } from 'elysia/ws'
 
 import { VprApi } from '@/api/vpr'
+import { DifyApi } from '@/api/dify'
+import { AsrApi, TtsApi } from '@/api/openspeech'
+import { log } from '@/log'
+
 import {
   WsChatCompleteResponseSuccess,
   WsOutputAudioCompleteResponseSuccess,
@@ -9,11 +13,7 @@ import {
   WsOutputTextStreamResponseSuccess,
   type WsUpdateConfigRequest,
   WsUpdateConfigResponseSuccess,
-} from '@/chat/types/websocket'
-import { log } from '@/log'
-
-import { DifyApi } from './dify'
-import { AsrApi, TtsApi } from './openspeech'
+} from './types'
 import { getResponseForUnrecognizedAsr, isValidTimezone } from './utils'
 
 export class ApiWrapper {
