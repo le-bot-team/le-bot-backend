@@ -122,7 +122,7 @@ export abstract class Auth {
 
 // noinspection JSUnusedGlobalSymbols
 export const authService = new Elysia({ name: 'auth/service' }).macro({
-  checkAccessToken: {
+  resolveAccessToken: {
     async resolve({ headers }) {
       const accessToken = headers['x-access-token']
       if (!accessToken) {

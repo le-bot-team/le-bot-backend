@@ -20,7 +20,7 @@ export const deviceRoute = new Elysia({ prefix: '/api/v1/devices', tags: ['Devic
       }
     },
     {
-      checkAccessToken: true,
+      resolveAccessToken: true,
       response: {
         200: 'ownerDevicesRespBody',
         500: 'errorRespBody',

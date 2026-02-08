@@ -80,14 +80,10 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth', tags: ['Auth'] })
       },
     },
   )
-  .get(
-    '/validate',
-    () => ({ success: true as const, data: undefined }),
-    {
-      checkAccessToken: true,
-      response: {
-        200: 'validateRespBody',
-        500: 'errorRespBody',
-      },
+  .get('/validate', () => ({ success: true as const, data: undefined }), {
+    resolveAccessToken: true,
+    response: {
+      200: 'validateRespBody',
+      500: 'errorRespBody',
     },
-  )
+  })

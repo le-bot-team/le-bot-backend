@@ -16,15 +16,12 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profiles', tags: ['Pro
       try {
         return await Profiles.getAvatar(id ?? userId)
       } catch (error) {
-        return buildErrorResponse(
-          500,
-          (error as Error).message,
-        )
+        return buildErrorResponse(500, (error as Error).message)
       }
     },
     {
       query: 'retrieveProfileInfo',
-      checkAccessToken: true,
+      resolveAccessToken: true,
       response: {
         200: 'avatarRespBody',
         400: 'errorRespBody',
@@ -39,15 +36,12 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profiles', tags: ['Pro
       try {
         return await Profiles.getProfileInfo(id ?? userId)
       } catch (error) {
-        return buildErrorResponse(
-          500,
-          (error as Error).message,
-        )
+        return buildErrorResponse(500, (error as Error).message)
       }
     },
     {
       query: 'retrieveProfileInfo',
-      checkAccessToken: true,
+      resolveAccessToken: true,
       response: {
         200: 'profileInfoRespBody',
         400: 'errorRespBody',
@@ -62,15 +56,12 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profiles', tags: ['Pro
       try {
         return await Profiles.updateProfileInfo(userId, body)
       } catch (error) {
-        return buildErrorResponse(
-          500,
-          (error as Error).message,
-        )
+        return buildErrorResponse(500, (error as Error).message)
       }
     },
     {
       body: 'updateProfileInfo',
-      checkAccessToken: true,
+      resolveAccessToken: true,
       response: {
         200: 'updateProfileRespBody',
         400: 'errorRespBody',
