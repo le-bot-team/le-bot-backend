@@ -32,7 +32,11 @@ export const deleteAccessToken = async (token: string): Promise<void> => {
 
 export abstract class Auth {
   static async emailChallenge(email: string) {
-    const code = Bun.randomUUIDv7().slice(0, 6).toUpperCase()
+    const bytes = crypto.getRandomValues(new Uint8Array(3))
+    const code = Array.from(bytes, (b) => b.toString(16).padStart(2, '0'))
+      .join('')
+      .slice(0, 6)
+      .toUpperCase()
     await redis.set(buildChallengeCodeRedisKey(email), code, 'EX', Number(Bun.env.TTL_CHALLENGE_CODE))
     try {
       await transport.sendMail({
@@ -64,6 +68,9 @@ export abstract class Auth {
     if (!(await Auth.verifyEmailCode(email, code))) {
       return buildErrorResponse(400, 'Invalid code')
     }
+
+    // Delete code immediately after successful verification to prevent replay attacks
+    await Auth.deleteEmailCode(email)
 
     const selectedUser = (
       await db.select().from(users).where(eq(users.email, email)).limit(1)
@@ -99,9 +106,6 @@ export abstract class Auth {
       })
     }
 
-    if (selectedUser.passwordHash?.length) {
-      await Auth.deleteEmailCode(email)
-    }
     const accessToken = Bun.randomUUIDv7()
     await setAccessToken(accessToken, selectedUser.id)
     return buildSuccessResponse({
