@@ -1,13 +1,16 @@
 import { redis } from 'bun'
-import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 import nodemailer from 'nodemailer'
 
-import { db } from '@/database'
-import { userProfiles, users } from '@/database/schema'
 import { log } from '@/log'
-import { buildAccessTokenRedisKey, buildChallengeCodeRedisKey } from '@/modules/auth/utils'
 import { buildErrorResponse, buildSuccessResponse } from '@/utils/common'
+
+import {
+  createNewUserAndProfile,
+  getUserByEmail,
+  updatePasswordByEmail,
+} from './repository'
+import { buildAccessTokenRedisKey, buildChallengeCodeRedisKey } from './utils'
 
 const transport = nodemailer.createTransport({
   host: Bun.env.SMTP_HOST,
@@ -37,7 +40,12 @@ export abstract class Auth {
       .join('')
       .slice(0, 6)
       .toUpperCase()
-    await redis.set(buildChallengeCodeRedisKey(email), code, 'EX', Number(Bun.env.TTL_CHALLENGE_CODE))
+    await redis.set(
+      buildChallengeCodeRedisKey(email),
+      code,
+      'EX',
+      Number(Bun.env.TTL_CHALLENGE_CODE),
+    )
     try {
       await transport.sendMail({
         from: 'Le Bot Official <noreply@studio26f.org>',
@@ -72,33 +80,11 @@ export abstract class Auth {
     // Delete code immediately after successful verification to prevent replay attacks
     await Auth.deleteEmailCode(email)
 
-    const selectedUser = (
-      await db.select().from(users).where(eq(users.email, email)).limit(1)
-    )[0]
-
+    const selectedUser = await getUserByEmail(email)
     if (!selectedUser) {
-      const insertedUser = (
-        await db
-          .insert(users)
-          .values({ email })
-          .returning({ id: users.id })
-      )[0]
-      if (!insertedUser) {
-        return buildErrorResponse(500, 'Failed to create user')
-      }
-      if (
-        !(
-          await db
-            .insert(userProfiles)
-            .values({ id: insertedUser.id })
-            .returning({ id: users.id })
-        ).length
-      ) {
-        return buildErrorResponse(500, 'Failed to create user')
-      }
-
+      const newUserId = await createNewUserAndProfile(email)
       const accessToken = Bun.randomUUIDv7()
-      await setAccessToken(accessToken, insertedUser.id)
+      await setAccessToken(accessToken, newUserId)
       return buildSuccessResponse({
         accessToken,
         isNew: true,
@@ -116,9 +102,7 @@ export abstract class Auth {
   }
 
   static async loginWithPassword(email: string, password: string) {
-    const selectedUser = (
-      await db.select().from(users).where(eq(users.email, email)).limit(1)
-    )[0]
+    const selectedUser = await getUserByEmail(email)
     if (!selectedUser) {
       return buildErrorResponse(404, 'User not found')
     }
@@ -131,7 +115,7 @@ export abstract class Auth {
 
     const accessToken = Bun.randomUUIDv7()
     await setAccessToken(accessToken, selectedUser.id)
-    log.info({ accessToken }, 'Access Token:')
+
     return buildSuccessResponse({
       accessToken,
       isNew: false,
@@ -143,63 +127,34 @@ export abstract class Auth {
     if (!(await Auth.verifyEmailCode(email, code))) {
       return buildErrorResponse(400, 'Invalid code')
     }
-    const selectedUser = (
-      await db.select().from(users).where(eq(users.email, email))
-    )[0]
-    if (!selectedUser) {
-      return buildErrorResponse(404, 'User not found')
-    }
-    const updateResult = await db
-      .update(users)
-      .set({
-        passwordHash: await Bun.password.hash(newPassword, {
-          algorithm: 'bcrypt',
-        }),
-      })
-      .where(eq(users.id, selectedUser.id))
-      .returning({ id: users.id })
+    const passwordHash = await Bun.password.hash(newPassword, {
+      algorithm: 'bcrypt',
+    })
+    const updateResult = await updatePasswordByEmail(email, passwordHash)
     if (!updateResult.length) {
-      return buildErrorResponse(500, 'Failed to update password')
+      return buildErrorResponse(404, 'User not found')
     }
     await Auth.deleteEmailCode(email)
     return buildSuccessResponse()
   }
 }
 
-export const authService = new Elysia({ name: 'auth/service' })
-  .macro({
-    checkAccessToken: {
-      async beforeHandle({ headers }) {
-        if (!headers['x-access-token']) {
-          return {
-            status: 401,
-            body: {
-              success: false,
-              message: 'Missing access token',
-            },
-          }
-        }
-        const accessToken = headers['x-access-token']
+export const authService = new Elysia({ name: 'auth/service' }).macro({
+  checkAccessToken: {
+    async resolve({ headers }) {
+      const accessToken = headers['x-access-token']
+      if (!accessToken) {
+        return buildErrorResponse(401, 'Missing access token')
+      }
 
-        log.info({ accessToken }, 'Access Token:')
+      const userId = await getUserIdByAccessToken(accessToken)
+      if (!userId) {
+        return buildErrorResponse(401, 'Invalid access token')
+      }
 
-        const userId = await getUserIdByAccessToken(accessToken)
-        if (!userId) {
-          return {
-            status: 401,
-            body: {
-              success: false,
-              message: 'Invalid access token',
-            },
-          }
-        }
-        // Refresh TTL on valid access
-        await redis.expire(buildAccessTokenRedisKey(accessToken), Number(Bun.env.TTL_ACCESS_TOKEN))
-      },
-      async resolve({ headers }) {
-        const accessToken = headers['x-access-token'] as string
-        const userId = await getUserIdByAccessToken(accessToken)
-        return { userId }
-      },
+      // Refresh TTL on valid access
+      await redis.expire(buildAccessTokenRedisKey(accessToken), Number(Bun.env.TTL_ACCESS_TOKEN))
+      return { userId }
     },
-  })
+  },
+})
