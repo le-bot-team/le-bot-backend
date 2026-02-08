@@ -1,4 +1,4 @@
-import { t } from 'elysia'
+import { Elysia, t } from 'elysia'
 
 import { buildSuccessRespBody, errorRespBody } from '@/utils/model'
 
@@ -15,13 +15,15 @@ const deviceSchema = t.Object({
   config: t.Nullable(t.Unknown()),
 })
 
-export const ownerDevicesRespBody = buildSuccessRespBody(
+const ownerDevicesRespBody = buildSuccessRespBody(
   t.Object({
     devices: t.Array(deviceSchema),
   }),
 )
 
-export { errorRespBody }
-
 export type Device = typeof deviceSchema.static
-export type OwnerDevicesResp = typeof ownerDevicesRespBody.static
+
+export const deviceModel = new Elysia({ name: 'device/model' }).model({
+  ownerDevicesRespBody,
+  errorRespBody,
+})

@@ -2,7 +2,6 @@ import { Elysia } from 'elysia'
 
 import { buildSuccessResponse } from '@/utils/common'
 
-import { ownerDevicesRespBody, errorRespBody } from './model'
 import { getDevicesByOwnerId } from './repository'
 
 export abstract class Devices {
@@ -12,7 +11,4 @@ export abstract class Devices {
   }
 }
 
-export const deviceService = new Elysia({ name: 'device/service' }).model({
-  ownerDevicesResp: ownerDevicesRespBody,
-  errorResp: errorRespBody,
-})
+export const deviceService = new Elysia({ name: 'device/service' })
