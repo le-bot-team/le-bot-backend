@@ -46,12 +46,17 @@ export abstract class Chat {
         await apiWrapper.inputAudioStream(message.data.buffer)
         break
       }
-      case 'inputAudioComplete': {
-        log.info({ messageId: message.id }, '[WsAction] Input audio complete')
-        apiWrapper.inputAudioComplete(message.data.buffer)
-        break
-      }
-      case 'clearContext': {
+       case 'inputAudioComplete': {
+         log.info({ messageId: message.id }, '[WsAction] Input audio complete')
+         apiWrapper.inputAudioComplete(message.data.buffer)
+         break
+       }
+       case 'inputWakeAudio': {
+         log.info({ messageId: message.id }, '[WsAction] Input wake audio')
+         await apiWrapper.inputAudioStream(message.data.buffer)
+         break
+       }
+       case 'clearContext': {
         // TODO: Implement context clearing (reset conversation state in ApiWrapper)
         break
       }
