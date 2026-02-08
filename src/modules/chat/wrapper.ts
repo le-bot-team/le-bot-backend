@@ -1,7 +1,7 @@
 import { ElysiaWS } from 'elysia/ws'
 
 import { VprApi } from '@/api/vpr'
-import { DifyApi } from '@/api/dify'
+import { ChatApi } from '@/api/chat'
 import { AsrApi, TtsApi } from '@/api/openspeech'
 import { log } from '@/log'
 
@@ -18,7 +18,7 @@ import { isValidTimezone } from './utils'
 
 export class ApiWrapper {
   private readonly _asrApi: AsrApi
-  private readonly _difyApi: DifyApi
+  private readonly _chatApi: ChatApi
   private readonly _ttsApi: TtsApi
   private readonly _vprApi: VprApi
 
@@ -41,7 +41,7 @@ export class ApiWrapper {
     private readonly _deviceId: string,
   ) {
     this._asrApi = new AsrApi(this._wsClient.id, this._userId, this._deviceId)
-    this._difyApi = new DifyApi(this._userId, this._nickname)
+    this._chatApi = new ChatApi(this._userId, this._nickname)
     this._ttsApi = new TtsApi(this._wsClient.id, this._userId)
     this._vprApi = new VprApi(this._userId, 0.6)
 
@@ -69,11 +69,12 @@ export class ApiWrapper {
       this._isReady = false
 
       try {
-        const fullAnswer = await this._difyApi.chatMessage(
+        const fullAnswer = await this._chatApi.chatMessage(
           this._conversationId,
           this._timeZone,
           recognized,
           !this._conversationId.length,
+          this._currentPersonId || undefined,
         )
         if (this._outputText) {
           this._wsClient.send(
@@ -102,7 +103,7 @@ export class ApiWrapper {
         )
       } catch (error) {
         if ((error as Error).name === 'AbortError') {
-          log.info('[ApiWrapper] DifyApi chatMessage aborted')
+          log.info('[ApiWrapper] ChatApi chatMessage aborted')
           return
         }
         log.error(error, '[ApiWrapper] Error during ASR finish handling')
@@ -171,10 +172,10 @@ export class ApiWrapper {
         }
       }
     }
-    this._difyApi.onConversationId = (conversationId) => {
+    this._chatApi.onConversationId = (conversationId: string) => {
       this._conversationId = conversationId
     }
-    this._difyApi.onUpdate = (text) => {
+    this._chatApi.onUpdate = (text: string) => {
       if (this._outputText) {
         this._wsClient.send(
           new WsOutputTextStreamResponseSuccess(
@@ -414,7 +415,7 @@ export class ApiWrapper {
     this._isAborting = true
     this._isReconnecting = true
     log.info('[WsAction] ASR finished during active session, interrupting')
-    this._difyApi.abort()
+    this._chatApi.abort()
 
     // Force-terminate TTS (no need to finishSession first since this is an interruption)
     this._ttsApi.abort()

@@ -19,6 +19,9 @@ const app = new Elysia()
   .use(
     env({
       APP_ID: t.String({ minLength: 1, description: 'App ID for the bot' }),
+      CHAT_API_URL: t.String({
+        description: 'Chat AI backend URL (e.g. http://localhost:8000)',
+      }),
       DATABASE_URL: t.String({
         default: 'postgresql://lebot:lebot@localhost:5432/lebot',
         description: 'Database connection URL',

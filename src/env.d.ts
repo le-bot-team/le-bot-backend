@@ -2,6 +2,7 @@ declare module 'bun' {
   interface Env {
     APP_ID: string
     ARK_API_KEY: string
+    CHAT_API_URL: string
     DATABASE_URL: string
     OPENSPEECH_ACCESS_TOKEN: string
     REDIS_URL: string
