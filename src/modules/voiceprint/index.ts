@@ -15,13 +15,19 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
     async ({ body, userId }) => {
       try {
         return await Voiceprint.recognize(userId, body.audio)
-      } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+      } catch (e) {
+        return buildErrorResponse(500, (e as Error).message)
       }
     },
     {
       body: 'recognizeReqBody',
-      checkAccessToken: true,
+      resolveAccessToken: true,
+      response: {
+        200: 'recognizeRespBody',
+        400: 'errorRespBody',
+        404: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )
   .post(
@@ -29,13 +35,18 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
     async ({ body, userId }) => {
       try {
         return await Voiceprint.register(userId, body)
-      } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+      } catch (e) {
+        return buildErrorResponse(500, (e as Error).message)
       }
     },
     {
       body: 'registerReqBody',
-      checkAccessToken: true,
+      resolveAccessToken: true,
+      response: {
+        200: 'registerRespBody',
+        400: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )
   .get(
@@ -43,12 +54,17 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
     async ({ userId }) => {
       try {
         return await Voiceprint.getPersons(userId)
-      } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+      } catch (e) {
+        return buildErrorResponse(500, (e as Error).message)
       }
     },
     {
-      checkAccessToken: true,
+      resolveAccessToken: true,
+      response: {
+        200: 'personsRespBody',
+        400: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )
   .delete(
@@ -56,12 +72,17 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
     async ({ params, userId }) => {
       try {
         return await Voiceprint.deletePerson(userId, params.personId)
-      } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+      } catch (e) {
+        return buildErrorResponse(500, (e as Error).message)
       }
     },
     {
-      checkAccessToken: true,
+      resolveAccessToken: true,
+      response: {
+        200: 'deletePersonRespBody',
+        404: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )
   .get(
@@ -69,12 +90,18 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
     async ({ params, userId }) => {
       try {
         return await Voiceprint.getPerson(userId, params.personId)
-      } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+      } catch (e) {
+        return buildErrorResponse(500, (e as Error).message)
       }
     },
     {
-      checkAccessToken: true,
+      resolveAccessToken: true,
+      response: {
+        200: 'personRespBody',
+        400: 'errorRespBody',
+        404: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )
   .put(
@@ -82,62 +109,73 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
     async ({ body, params, userId }) => {
       try {
         return await Voiceprint.updatePerson(userId, params.personId, body)
-      } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+      } catch (e) {
+        return buildErrorResponse(500, (e as Error).message)
       }
     },
     {
       body: 'updatePersonReqBody',
-      checkAccessToken: true,
+      resolveAccessToken: true,
+      response: {
+        200: 'updatePersonRespBody',
+        400: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )
   .post(
-    '/persons/:person_id/voices/add',
+    '/persons/:personId/voices/add',
     async ({ body, params, userId }) => {
       try {
-        return await Voiceprint.addVoice(userId, params.person_id, body.audio)
-      } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+        return await Voiceprint.addVoice(userId, params.personId, body.audio)
+      } catch (e) {
+        return buildErrorResponse(500, (e as Error).message)
       }
     },
     {
       body: 'addVoiceReqBody',
-      checkAccessToken: true,
+      resolveAccessToken: true,
+      response: {
+        200: 'addVoiceRespBody',
+        400: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )
   .delete(
     '/persons/:personId/voices/:voiceId',
     async ({ params, userId }) => {
       try {
-        return await Voiceprint.deleteVoice(
-          userId,
-          params.personId,
-          params.voiceId,
-        )
-      } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+        return await Voiceprint.deleteVoice(userId, params.personId, params.voiceId)
+      } catch (e) {
+        return buildErrorResponse(500, (e as Error).message)
       }
     },
     {
-      checkAccessToken: true,
+      resolveAccessToken: true,
+      response: {
+        200: 'deleteVoiceRespBody',
+        400: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )
   .put(
     '/persons/:personId/voices/:voiceId',
     async ({ body, params, userId }) => {
       try {
-        return await Voiceprint.updateVoice(
-          userId,
-          params.personId,
-          params.voiceId,
-          body.audio,
-        )
-      } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+        return await Voiceprint.updateVoice(userId, params.personId, params.voiceId, body.audio)
+      } catch (e) {
+        return buildErrorResponse(500, (e as Error).message)
       }
     },
     {
       body: 'updateVoiceReqBody',
-      checkAccessToken: true,
+      resolveAccessToken: true,
+      response: {
+        200: 'updateVoiceRespBody',
+        400: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )

@@ -6,7 +6,7 @@ import { buildErrorResponse, buildSuccessResponse } from '@/utils/common'
 
 import type { RegisterReqBody, UpdatePersonReqBody } from './model'
 import {
-  getPersonById,
+  deletePersonByUserAndId,
   getPersonByUserAndId,
   getPersonsByUserId,
   insertPerson,
@@ -20,9 +20,9 @@ export abstract class Voiceprint {
     if (!result.success) {
       return buildErrorResponse(400, result.message)
     }
-    const selectPerson = await getPersonById(result.data.person_id)
+    const selectPerson = await getPersonByUserAndId(userId, result.data.person_id)
     if (!selectPerson) {
-      // Remove person_id since person not found in DB
+      // Remove person from VPR since not found in DB for this user
       await vprApi.deletePerson(result.data.person_id)
       return buildErrorResponse(404, 'Person not found in database')
     }
@@ -67,11 +67,6 @@ export abstract class Voiceprint {
       return buildErrorResponse(400, result.message)
     }
     const selectPersonsResult = await getPersonsByUserId(userId)
-    if (!selectPersonsResult.length) {
-      // Remove user from VPR since no persons found in DB
-      await vprApi.deleteUser()
-      return buildErrorResponse(404, 'No persons found in database')
-    }
     return buildSuccessResponse(
       result.data
         .map((person) => {
@@ -79,7 +74,7 @@ export abstract class Voiceprint {
             (selectPerson) => selectPerson.id === person.person_id,
           )
           if (!selectPerson) {
-            // Remove person from VPR since not found in DB
+            // Remove orphaned person from VPR since not found in DB
             vprApi
               .deletePerson(person.person_id)
               .catch((error) => log.warn(error))
@@ -99,10 +94,15 @@ export abstract class Voiceprint {
   }
 
   static async deletePerson(userId: string, personId: string) {
+    const person = await getPersonByUserAndId(userId, personId)
+    if (!person) {
+      return buildErrorResponse(404, 'Person not found')
+    }
+    await deletePersonByUserAndId(userId, personId)
     const vprApi = new VprApi(userId)
     const result = await vprApi.deletePerson(personId)
     if (!result.success) {
-      return buildErrorResponse(400, result.message)
+      log.warn(`Failed to delete person ${personId} from VPR: ${result.message}`)
     }
     return buildSuccessResponse()
   }
@@ -145,8 +145,8 @@ export abstract class Voiceprint {
       updatePayload.relationship = data.relationship
     }
     if (Object.keys(updatePayload).length) {
-      const insertResult = await updatePerson(userId, personId, updatePayload)
-      if (!insertResult.length) {
+      const updateResult = await updatePerson(userId, personId, updatePayload)
+      if (!updateResult.length) {
         failedMessage += 'Failed to update person metadata in database'
       }
     }
