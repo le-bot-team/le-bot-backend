@@ -1,144 +1,81 @@
-import { eq } from 'drizzle-orm'
-import { BunSQLDatabase } from 'drizzle-orm/bun-sql'
-import Elysia from 'elysia'
+import { Elysia } from 'elysia'
 
 import { authService } from '@/modules/auth/service'
-import { db } from '@/database'
-import { userProfiles } from '@/database/schema'
+import { buildErrorResponse } from '@/utils/common'
 
-import {
-  retrieveProfileInfoValidator,
-  updateProfileInfoValidator,
-} from './model'
-import { profileService } from './service'
+import { profileModel } from './model'
+import { Profiles, profileService } from './service'
 
-const getUserProfileById = async (db: BunSQLDatabase, id: string) => {
-  const selectedUsersResult = await db
-    .select()
-    .from(userProfiles)
-    .where(eq(userProfiles.id, id))
-  if (!selectedUsersResult.length) {
-    return
-  }
-  return selectedUsersResult[0]
-}
-
-export const profileRoute = new Elysia({ prefix: '/api/v1/profiles' })
+export const profileRoute = new Elysia({ prefix: '/api/v1/profiles', tags: ['Profile'] })
   .use(authService)
+  .use(profileModel)
   .use(profileService)
   .get(
     '/avatar',
     async ({ query: { id }, userId }) => {
-      const targetId = id ?? userId
-      if (!targetId?.length) {
-        return {
-          success: false,
-          message: 'User ID is required',
-        }
-      }
-      const selectedUser = await getUserProfileById(db, targetId)
-      if (!selectedUser) {
-        return {
-          success: false,
-          message: 'User not found',
-        }
-      }
-      return {
-        success: true,
-        data: {
-          id: selectedUser.id,
-          avatar: selectedUser.avatar,
-          avatarHash: selectedUser.avatarHash,
-        },
+      try {
+        return await Profiles.getAvatar(id ?? userId)
+      } catch (error) {
+        return buildErrorResponse(
+          500,
+          (error as Error).message,
+        )
       }
     },
     {
-      query: retrieveProfileInfoValidator,
+      query: 'retrieveProfileInfo',
       checkAccessToken: true,
+      response: {
+        200: 'avatarRespBody',
+        400: 'errorRespBody',
+        404: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )
   .get(
     '/info',
     async ({ query: { id }, userId }) => {
-      const targetId = id ?? userId
-      if (!targetId?.length) {
-        return {
-          success: false,
-          message: 'User ID is required',
-        }
-      }
-      const selectedUser = await getUserProfileById(db, targetId)
-      if (!selectedUser) {
-        return {
-          success: false,
-          message: 'User not found',
-        }
-      }
-      return {
-        success: true,
-        data: {
-          id: selectedUser.id,
-          nickname: selectedUser.nickname,
-          bio: selectedUser.bio,
-          avatarHash: selectedUser.avatarHash,
-          region: selectedUser.region,
-          createdAt: selectedUser.createdAt,
-          updatedAt: selectedUser.updatedAt,
-        },
+      try {
+        return await Profiles.getProfileInfo(id ?? userId)
+      } catch (error) {
+        return buildErrorResponse(
+          500,
+          (error as Error).message,
+        )
       }
     },
     {
-      query: retrieveProfileInfoValidator,
+      query: 'retrieveProfileInfo',
       checkAccessToken: true,
+      response: {
+        200: 'profileInfoRespBody',
+        400: 'errorRespBody',
+        404: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )
   .put(
     '/info',
     async ({ body, userId }) => {
-      if (!userId?.length) {
-        return {
-          success: false,
-          message: 'User ID is required',
-        }
-      }
-      const selectedUsersResult = await db
-        .select()
-        .from(userProfiles)
-        .where(eq(userProfiles.id, userId))
-      if (!selectedUsersResult.length) {
-        return {
-          success: false,
-          message: 'User not found',
-        }
-      }
-
-      const updateResult = await db
-        .update(userProfiles)
-        .set({
-          ...body,
-          avatarHash: body.avatar
-            ? new Bun.CryptoHasher('blake2b512')
-                .update(body.avatar)
-                .digest('hex')
-            : undefined,
-          updatedAt: new Date().toISOString(),
-        })
-        .where(eq(userProfiles.id, userId))
-        .returning({ id: userProfiles.id })
-
-      if (!updateResult.length) {
-        return {
-          success: false,
-          message: 'Failed to update profile',
-        }
-      }
-
-      return {
-        success: true,
+      try {
+        return await Profiles.updateProfileInfo(userId, body)
+      } catch (error) {
+        return buildErrorResponse(
+          500,
+          (error as Error).message,
+        )
       }
     },
     {
-      body: updateProfileInfoValidator,
+      body: 'updateProfileInfo',
       checkAccessToken: true,
+      response: {
+        200: 'updateProfileRespBody',
+        400: 'errorRespBody',
+        404: 'errorRespBody',
+        500: 'errorRespBody',
+      },
     },
   )

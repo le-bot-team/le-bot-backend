@@ -1,4 +1,4 @@
-import { t } from 'elysia'
+import { Elysia, t } from 'elysia'
 
 const relationshipEnum = t.Union([
   t.Literal('self'),
@@ -8,11 +8,11 @@ const relationshipEnum = t.Union([
   t.Literal('other'),
 ])
 
-export const recognizeValidator = t.Object({
+export const recognizeReqBody = t.Object({
   audio: t.String(),
 })
 
-export const registerValidator = t.Object({
+export const registerReqBody = t.Object({
   audio: t.String(),
   name: t.String(),
   age: t.Number({ minimum: 0, maximum: 120 }),
@@ -21,16 +21,30 @@ export const registerValidator = t.Object({
   isTemporal: t.Optional(t.Boolean()),
 })
 
-export const updatePersonValidator = t.Object({
+export const updatePersonReqBody = t.Object({
   name: t.Optional(t.String()),
   relationship: t.Optional(relationshipEnum),
   isTemporal: t.Optional(t.Boolean()),
 })
 
-export const addVoiceValidator = t.Object({
+export const addVoiceReqBody = t.Object({
   audio: t.String(),
 })
 
-export const updateVoiceValidator = t.Object({
+export const updateVoiceReqBody = t.Object({
   audio: t.String(),
+})
+
+export type RecognizeReqBody = typeof recognizeReqBody.static
+export type RegisterReqBody = typeof registerReqBody.static
+export type UpdatePersonReqBody = typeof updatePersonReqBody.static
+export type AddVoiceReqBody = typeof addVoiceReqBody.static
+export type UpdateVoiceReqBody = typeof updateVoiceReqBody.static
+
+export const voiceprintModel = new Elysia({ name: 'voiceprint/model' }).model({
+  recognizeReqBody,
+  registerReqBody,
+  updatePersonReqBody,
+  addVoiceReqBody,
+  updateVoiceReqBody,
 })

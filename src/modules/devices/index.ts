@@ -1,36 +1,30 @@
-import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 
 import { authService } from '@/modules/auth/service'
-import { db } from '@/database'
-import { devices } from '@/database/schema'
+import { buildErrorResponse } from '@/utils/common'
 
-import { deviceService } from './service'
+import { Devices, deviceService } from './service'
 
-export const deviceRoute = new Elysia({ prefix: '/api/v1/devices' })
+export const deviceRoute = new Elysia({ prefix: '/api/v1/devices', tags: ['Device'] })
   .use(authService)
   .use(deviceService)
   .get(
     '/mine',
     async ({ userId }) => {
-      if (!userId?.length) {
-        return {
-          success: false,
-          message: 'Unauthorized',
-        }
-      }
-      const ownerDevices = await db
-        .select()
-        .from(devices)
-        .where(eq(devices.ownerId, userId))
-      return {
-        success: true,
-        data: {
-          devices: ownerDevices,
-        },
+      try {
+        return await Devices.getOwnerDevices(userId)
+      } catch (error) {
+        return buildErrorResponse(
+          500,
+          error instanceof Error ? error.message : 'Internal server error',
+        )
       }
     },
     {
       checkAccessToken: true,
+      response: {
+        200: 'ownerDevicesResp',
+        500: 'errorResp',
+      },
     },
   )
