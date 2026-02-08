@@ -1,5 +1,6 @@
-import { t } from 'elysia'
+import { Elysia, t } from 'elysia'
 
+// WebSocket request validators
 export const wsUpdateConfigRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('updateConfig'),
@@ -60,4 +61,14 @@ export const wsRequestValidator = t.Union([
 
 export const wsQueryValidator = t.Object({
   token: t.String(),
+})
+
+// TypeScript types
+export type WsRequest = typeof wsRequestValidator.static
+export type WsQuery = typeof wsQueryValidator.static
+
+// Elysia model plugin
+export const chatModel = new Elysia({ name: 'chat/model' }).model({
+  wsRequest: wsRequestValidator,
+  wsQuery: wsQueryValidator,
 })

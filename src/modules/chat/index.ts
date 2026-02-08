@@ -1,42 +1,30 @@
-import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 
-import { db } from '@/database'
-import { userProfiles } from '@/database/schema'
 import { log } from '@/log'
-import { getUserIdByAccessToken } from '@/modules/auth/service'
 
+import { chatModel } from './model'
+import { Chat, chatService } from './service'
 import { WsEstablishConnectionResponseSuccess } from './types'
 import { ApiWrapper } from './wrapper'
-import { chatService } from './service'
 
-export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
+export const chatRoute = new Elysia({ prefix: '/api/v1/chat', tags: ['Chat'] })
+  .use(chatModel)
   .use(chatService)
   .ws('/ws', {
     body: 'wsRequest',
     query: 'wsQuery',
     open: async (ws) => {
       const { query, store } = ws.data
-      const userId = await getUserIdByAccessToken(query.token)
-      if (!userId) {
-        log.warn({ wsId: ws.id }, 'Unauthorized WsClient connection attempt')
+      const auth = await Chat.authenticateConnection(query.token)
+      if (!auth) {
         ws.close(1008, 'Unauthorized')
         return
       }
-      const selectedUser = (await db
-        .select()
-        .from(userProfiles)
-        .where(eq(userProfiles.id, userId)).limit(1))[0]
-      if (!selectedUser) {
-        log.warn({ userId, wsId: ws.id }, 'User not found for WsClient')
-        ws.close(1008, 'User not found')
-        return
-      }
-      log.debug({ userId, wsId: ws.id }, 'WsClient opened')
-      store.wsIdToUserIdMap.set(ws.id, userId)
+      log.debug({ userId: auth.userId, wsId: ws.id }, 'WsClient opened')
+      store.wsIdToUserIdMap.set(ws.id, auth.userId)
       store.wsIdToApiWrapperMap.set(
         ws.id,
-        new ApiWrapper(ws, userId, selectedUser.nickname ?? '', ''),
+        new ApiWrapper(ws, auth.userId, auth.nickname, ''),
       )
       ws.send(new WsEstablishConnectionResponseSuccess(ws.id))
     },
@@ -66,31 +54,9 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat' })
         return
       }
 
-      switch (message.action) {
-        case 'updateConfig': {
-          await apiWrapper.updateConfig(message)
-          break
-        }
-        case 'inputAudioStream': {
-          await apiWrapper.inputAudioStream(message.data.buffer)
-          break
-        }
-        case 'inputAudioComplete': {
-          log.info({ messageId: message.id }, '[WsAction] Input audio complete')
-          apiWrapper.inputAudioComplete(message.data.buffer)
-          break
-        }
-        case 'clearContext': {
-          break
-        }
-        case 'cancelOutput': {
-          break
-        }
-        default: {
-          log.warn({ userId, wsId: ws.id, message }, 'Invalid WsClient action')
-          ws.close(1003, 'Invalid action')
-          break
-        }
+      const handled = await Chat.handleMessage(ws.id, userId, apiWrapper, message)
+      if (!handled) {
+        ws.close(1003, 'Invalid action')
       }
     },
   })
