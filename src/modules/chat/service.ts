@@ -42,24 +42,26 @@ export abstract class Chat {
         await apiWrapper.updateConfig(message)
         break
       }
-      case 'inputAudioStream': {
-        await apiWrapper.inputAudioStream(message.data.buffer)
-        break
-      }
+       case 'inputAudioStream': {
+         await apiWrapper.inputAudioStream(message.data.buffer)
+         break
+       }
        case 'inputAudioComplete': {
          log.info({ messageId: message.id }, '[WsAction] Input audio complete')
          apiWrapper.inputAudioComplete(message.data.buffer)
          break
        }
        case 'inputWakeAudio': {
+         // Route to inputAudioStream to enqueue buffered audio to ASR
+         // This is correct for wake-up scenario: send buffered audio to ASR pipeline
          log.info({ messageId: message.id }, '[WsAction] Input wake audio')
          await apiWrapper.inputAudioStream(message.data.buffer)
          break
        }
        case 'clearContext': {
-        // TODO: Implement context clearing (reset conversation state in ApiWrapper)
-        break
-      }
+         // TODO: Implement context clearing (reset conversation state in ApiWrapper)
+         break
+       }
       case 'cancelOutput': {
         // TODO: Implement output cancellation (abort ongoing Dify/TTS pipeline)
         break

@@ -51,10 +51,19 @@ const wsCancelOutputRequestValidator = t.Object({
   action: t.Literal('cancelOutput'),
 })
 
+const wsInputWakeAudioRequestValidator = t.Object({
+  id: t.String(),
+  action: t.Literal('inputWakeAudio'),
+  data: t.Object({
+    buffer: t.String(),
+  }),
+})
+
 const wsRequestValidator = t.Union([
   wsUpdateConfigRequestValidator,
   wsInputAudioStreamRequestValidator,
   wsInputAudioCompleteRequestValidator,
+  wsInputWakeAudioRequestValidator,
   wsClearContextRequestValidator,
   wsCancelOutputRequestValidator,
 ])
