@@ -306,7 +306,7 @@ export class TtsApi {
 
   abort(): void {
     log.info('[TtsApi] Aborting TTS session')
-    // 立即清理状态
+    // Clear state immediately
     this._connectionPromise = undefined
     this._connectionId = undefined
     this._startSessionPromise = undefined
@@ -314,7 +314,7 @@ export class TtsApi {
     this._onSessionStarted = undefined
     this._onSessionFinished = undefined
 
-    // 强制终止 WebSocket 连接
+    // Force-terminate the WebSocket connection
     if (this._ws) {
       this._ws.onopen = null
       this._ws.onclose = null
@@ -342,7 +342,7 @@ export class TtsApi {
       return this._connectionPromise
     }
 
-    // 如果之前有连接但已断开，清理状态以便重新连接
+    // If there was a previous connection that has disconnected, clean up state to allow reconnection
     if (this._ws && this._connectionId?.length) {
       return true
     }
@@ -430,7 +430,7 @@ export class TtsApi {
               break
 
             case TtsEventType.ttsSentenceEnd:
-              // 句子音频发送完成，触发 onFinish 回调
+              // Sentence audio finished, trigger onFinish callback
               this.onFinish?.()
               break
 
@@ -447,7 +447,7 @@ export class TtsApi {
               break
 
             default:
-              // 忽略其他事件类型，如 ttsSentenceStart
+              // Ignore other event types such as ttsSentenceStart
               break
           }
         } catch (e) {

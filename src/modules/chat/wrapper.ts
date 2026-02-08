@@ -58,7 +58,7 @@ export class ApiWrapper {
         )
       }
 
-      // 清空VPR音频缓存，准备下次识别
+      // Clear VPR audio buffer for the next recognition
       this._audioBufferForVpr = []
 
       if (recognized.length < 2) {
@@ -87,9 +87,9 @@ export class ApiWrapper {
           )
         }
 
-        // 发送 TTS 文本，但不结束会话，保持连接以便下次使用
+        // Send TTS text without ending the session; keep the connection alive for reuse
         this._ttsApi.sendText(fullAnswer)
-        // 注意：不再调用 finishSession()，让会话保持活跃状态
+        // Note: no longer calling finishSession(); keep the session active
 
         this._wsClient.send(
           new WsChatCompleteResponseSuccess(
@@ -239,20 +239,20 @@ export class ApiWrapper {
   }
 
   async inputAudioStream(buffer: string): Promise<boolean> {
-    // 将音频数据加入队列
+    // Enqueue the audio data
     this._audioQueue.push({ buffer, isComplete: false })
 
-    // 开始处理队列
+    // Start processing the queue
     await this._processAudioQueue()
 
     return true
   }
 
   inputAudioComplete(buffer: string): boolean {
-    // 将完成音频数据加入队列
+    // Enqueue the final audio data
     this._audioQueue.push({ buffer, isComplete: true })
 
-    // 异步处理队列，不阻塞当前调用
+    // Process the queue asynchronously without blocking the current call
     this._processAudioQueue().catch((error) => {
       log.error(error, '[WsAction] Failed to process audio queue')
     })
@@ -274,7 +274,7 @@ export class ApiWrapper {
           continue
         }
 
-        // 如果是第一个音频包且未连接，先建立连接
+        // If this is the first audio packet and not connected, establish connections first
         if (
           this._isFirstAudio &&
           !this._isConnectionReady() &&
@@ -283,12 +283,12 @@ export class ApiWrapper {
           await this._establishConnections()
         }
 
-        // 等待连接完成
+        // Wait for connection to complete
         while (this._isConnecting() || this._isAborting) {
           await new Promise((resolve) => setTimeout(resolve, 10))
         }
 
-        // 如果连接失败且不是在重连过程中，清空队列并退出
+        // If connection failed and not reconnecting, clear the queue and exit
         if (!this._isConnectionReady() && !this._isReconnecting) {
           this._audioQueue = []
           log.error('[ApiWrapper] API connections not ready, closing WebSocket')
@@ -296,15 +296,15 @@ export class ApiWrapper {
           break
         }
 
-        // 如果正在重连,跳过当前音频数据，继续处理队列
+        // If reconnecting, skip the current audio data and continue processing the queue
         if (this._isReconnecting) {
           continue
         }
 
-        // 缓存音频数据用于 VPR
+        // Buffer audio data for VPR
         this._audioBufferForVpr.push(audioData.buffer)
 
-        // 发送音频数据
+        // Send the audio data
         const sendResult = audioData.isComplete
           ? this._asrApi.sendAudioBase64(audioData.buffer, true)
           : this._asrApi.sendAudioBase64(audioData.buffer, false)
@@ -377,7 +377,7 @@ export class ApiWrapper {
     try {
       log.info('[WsAction] Establishing API connections')
 
-      // 先连接 ASR 和 TTS
+      // Connect ASR and TTS first
       const [asrConnected, ttsConnected] = await Promise.all([
         this._asrApi.connect(),
         this._ttsApi.connect(),
@@ -393,7 +393,7 @@ export class ApiWrapper {
         return
       }
 
-      // TTS 连接成功后，启动会话
+      // After TTS connection succeeds, start the session
       const sessionStarted = await this._ttsApi.startSession()
       if (!sessionStarted) {
         log.error('[WsAction] Failed to start TTS session')
@@ -416,13 +416,13 @@ export class ApiWrapper {
     log.info('[WsAction] ASR finished during active session, interrupting')
     this._difyApi.abort()
 
-    // 强制终止 TTS（不需要先 finishSession，因为是中断）
+    // Force-terminate TTS (no need to finishSession first since this is an interruption)
     this._ttsApi.abort()
 
-    // 等待 TTS 完全关闭后再重新连接
+    // Wait for TTS to fully close before reconnecting
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    // 重新连接并启动 TTS 会话
+    // Reconnect and start a new TTS session
     try {
       const ttsConnected = await this._ttsApi.connect()
       if (ttsConnected) {
