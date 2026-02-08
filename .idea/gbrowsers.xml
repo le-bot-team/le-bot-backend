@@ -3,6 +3,7 @@
   <component name="GBrowserService"><![CDATA[{
   "defaultHomePage": "https://www.google.com",
   "isProtocolHidden": false,
+  "theme": "LIGHT",
   "history": [
     {
       "name": "GBrowser - IntelliJ IDEs Plugin | Marketplace",
@@ -47,7 +48,24 @@
     {
       "name": "Google",
       "url": "https://www.google.com/"
+    },
+    {
+      "name": "Google",
+      "url": "https://www.google.com/?zx=1770524357973&no_sw_cr=1"
+    },
+    {
+      "name": "偷摸零回来玩街霸啦 - 应当高松灯 - 哔哩哔哩直播，二次元弹幕直播平台",
+      "url": "https://live.bilibili.com/32801130?spm_id_from=333.1391.0.0&live_from=88001"
+    },
+    {
+      "name": "偷摸零回来玩街霸啦 - 应当高松灯 - 哔哩哔哩直播，二次元弹幕直播平台",
+      "url": "https://www.bilibili.com/"
+    },
+    {
+      "name": "哔哩哔哩直播，二次元弹幕直播平台",
+      "url": "https://live.bilibili.com/?visit_id=ch98czmu2t40"
     }
-  ]
+  ],
+  "antiDetectionEnabled": false
 }]]></component>
 </project>
