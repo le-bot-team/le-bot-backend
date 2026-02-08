@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/bun-sql'
 import { sql } from 'drizzle-orm'
 
-export const db = drizzle(Bun.env['DATABASE_URL'])
+export const db = drizzle(Bun.env.DATABASE_URL)
 
 export const checkDbConnection = async () => {
   try {
