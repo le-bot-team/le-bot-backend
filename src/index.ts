@@ -32,10 +32,21 @@ const app = new Elysia()
         default: 'redis://localhost:6379',
         description: 'Redis connection URL',
       }),
+      SMTP_FROM: t.String({
+        description: 'Email address used in the From field when sending emails',
+      }),
       SMTP_HOST: t.String({ description: 'SMTP server host' }),
       SMTP_PORT: t.Number({ description: 'SMTP server port, usually 25' }),
       SMTP_PASSWORD: t.String({ description: 'SMTP server password' }),
       SMTP_USERNAME: t.String({ description: 'SMTP server username' }),
+      TTL_ACCESS_TOKEN: t.Number({
+        default: 86400,
+        description: 'Access token TTL in seconds (default 24 hours)',
+      }),
+      TTL_CHALLENGE_CODE: t.Number({
+        default: 300,
+        description: 'Email challenge code TTL in seconds (default 5 minutes)',
+      }),
       VPR_URL: t.String({ description: 'Voiceprint Recognition service URL' }),
     }),
   )
