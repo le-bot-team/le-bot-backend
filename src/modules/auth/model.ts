@@ -46,12 +46,6 @@ const emailResetRespBody = buildSuccessRespBody()
 
 const validateRespBody = buildSuccessRespBody()
 
-// Request body types
-export type EmailChallengeReqBody = typeof emailChallengeReqBody.static
-export type EmailCodeReqBody = typeof emailCodeReqBody.static
-export type EmailPasswordReqBody = typeof emailPasswordReqBody.static
-export type EmailResetReqBody = typeof emailResetReqBody.static
-
 export const authModel = new Elysia({ name: 'auth.model' }).model({
   emailChallengeReqBody,
   emailCodeReqBody,
