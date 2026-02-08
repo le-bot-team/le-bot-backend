@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia'
 
 // WebSocket request validators
-export const wsUpdateConfigRequestValidator = t.Object({
+const wsUpdateConfigRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('updateConfig'),
   data: t.Object({
@@ -25,7 +25,7 @@ export const wsUpdateConfigRequestValidator = t.Object({
   }),
 })
 
-export const wsInputAudioStreamRequestValidator = t.Object({
+const wsInputAudioStreamRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('inputAudioStream'),
   data: t.Object({
@@ -33,7 +33,7 @@ export const wsInputAudioStreamRequestValidator = t.Object({
   }),
 })
 
-export const wsInputAudioCompleteRequestValidator = t.Object({
+const wsInputAudioCompleteRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('inputAudioComplete'),
   data: t.Object({
@@ -41,17 +41,17 @@ export const wsInputAudioCompleteRequestValidator = t.Object({
   }),
 })
 
-export const wsClearContextRequestValidator = t.Object({
+const wsClearContextRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('clearContext'),
 })
 
-export const wsCancelOutputRequestValidator = t.Object({
+const wsCancelOutputRequestValidator = t.Object({
   id: t.String(),
   action: t.Literal('cancelOutput'),
 })
 
-export const wsRequestValidator = t.Union([
+const wsRequestValidator = t.Union([
   wsUpdateConfigRequestValidator,
   wsInputAudioStreamRequestValidator,
   wsInputAudioCompleteRequestValidator,
@@ -59,16 +59,16 @@ export const wsRequestValidator = t.Union([
   wsCancelOutputRequestValidator,
 ])
 
-export const wsQueryValidator = t.Object({
+const wsQueryValidator = t.Object({
   token: t.String(),
 })
 
-// TypeScript types
-export type WsRequest = typeof wsRequestValidator.static
-export type WsQuery = typeof wsQueryValidator.static
-
 // Elysia model plugin
-export const chatModel = new Elysia({ name: 'chat/model' }).model({
+export const chatModel = new Elysia({ name: 'chat.model' }).model({
   wsRequest: wsRequestValidator,
   wsQuery: wsQueryValidator,
 })
+
+// TypeScript type exports (derived from validators for use by other files)
+export type WsRequest = typeof wsRequestValidator.static
+export type WsUpdateConfigRequest = typeof wsUpdateConfigRequestValidator.static

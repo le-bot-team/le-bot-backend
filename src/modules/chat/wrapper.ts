@@ -5,16 +5,16 @@ import { DifyApi } from '@/api/dify'
 import { AsrApi, TtsApi } from '@/api/openspeech'
 import { log } from '@/log'
 
+import type { WsUpdateConfigRequest } from './model'
 import {
   WsChatCompleteResponseSuccess,
   WsOutputAudioCompleteResponseSuccess,
   WsOutputAudioStreamResponseSuccess,
   WsOutputTextCompleteResponseSuccess,
   WsOutputTextStreamResponseSuccess,
-  type WsUpdateConfigRequest,
   WsUpdateConfigResponseSuccess,
 } from './types'
-import { getResponseForUnrecognizedAsr, isValidTimezone } from './utils'
+import { isValidTimezone } from './utils'
 
 export class ApiWrapper {
   private readonly _asrApi: AsrApi
@@ -69,14 +69,12 @@ export class ApiWrapper {
       this._isReady = false
 
       try {
-        const fullAnswer = recognized.length
-          ? await this._difyApi.chatMessage(
-              this._conversationId,
-              this._timeZone,
-              recognized,
-              !this._conversationId.length,
-            )
-          : getResponseForUnrecognizedAsr()
+        const fullAnswer = await this._difyApi.chatMessage(
+          this._conversationId,
+          this._timeZone,
+          recognized,
+          !this._conversationId.length,
+        )
         if (this._outputText) {
           this._wsClient.send(
             new WsOutputTextCompleteResponseSuccess(
@@ -223,20 +221,19 @@ export class ApiWrapper {
     if (request.data.conversationId) {
       this._conversationId = request.data.conversationId
     }
-    if (request.data.outputText) {
+    if (request.data.outputText !== undefined) {
       this._outputText = request.data.outputText
     }
     if (request.data.timezone && isValidTimezone(request.data.timezone)) {
       this._timeZone = request.data.timezone
     }
+    // TODO: Apply remaining config fields: location, sampleRate, speechRate, voiceId
     this._wsClient.send(
-      JSON.stringify(
-        new WsUpdateConfigResponseSuccess(request.id, {
-          conversationId: this._conversationId,
-          timezone: this._timeZone,
-          outputText: this._outputText,
-        }),
-      ),
+      new WsUpdateConfigResponseSuccess(request.id, {
+        conversationId: this._conversationId,
+        timezone: this._timeZone,
+        outputText: this._outputText,
+      }),
     )
     return true
   }
@@ -332,21 +329,24 @@ export class ApiWrapper {
     return this._asrApi.isConnecting || this._ttsApi.isConnecting
   }
 
-  private async _handleVoicePrintRecognition() {
-    // 如果没有缓存的音频数据，直接返回
+  private _getCombinedAudioBase64(): string | null {
     if (this._audioBufferForVpr.length === 0) {
-      log.warn('[VPR] No audio data buffered for voice print recognition')
+      log.warn('[VPR] No audio data buffered for voice print processing')
+      return null
+    }
+    return Buffer.concat(
+      this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64')),
+    ).toString('base64')
+  }
+
+  private async _handleVoicePrintRecognition() {
+    const combinedAudioBase64 = this._getCombinedAudioBase64()
+    if (!combinedAudioBase64) {
       return null
     }
 
     try {
-      // 合并所有音频数据
-      const combinedAudioBase64 = Buffer.concat(
-        this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64')),
-      ).toString('base64')
-
       log.info('[VPR] Starting voice recognition...')
-
       return await this._vprApi.recognize(combinedAudioBase64)
     } catch (error) {
       log.error(`Error during voice print recognition: ${error}`)
@@ -355,18 +355,12 @@ export class ApiWrapper {
   }
 
   private async _handleVoicePrintRegistration() {
-    // 如果没有缓存的音频数据，直接返回
-    if (this._audioBufferForVpr.length === 0) {
-      log.warn('[VPR] No audio data buffered for voice print recognition')
+    const combinedAudioBase64 = this._getCombinedAudioBase64()
+    if (!combinedAudioBase64) {
       return null
     }
 
     try {
-      // 合并所有音频数据
-      const combinedAudioBase64 = Buffer.concat(
-        this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64')),
-      ).toString('base64')
-
       // TODO: Register person to Postgres database
       return await this._vprApi.register(combinedAudioBase64)
     } catch (error) {
@@ -418,6 +412,7 @@ export class ApiWrapper {
   private async _interruptOngoingProcesses(): Promise<void> {
     // Interrupt any ongoing DifyApi communication or TtsApi streaming
     this._isAborting = true
+    this._isReconnecting = true
     log.info('[WsAction] ASR finished during active session, interrupting')
     this._difyApi.abort()
 
@@ -437,14 +432,17 @@ export class ApiWrapper {
         log.error('[WsAction] Failed to reconnect TTS after interrupt')
         this._wsClient.close(1011, 'TTS reconnection failed')
         this._isAborting = false
+        this._isReconnecting = false
         return
       }
     } catch (error) {
       log.error(error, '[WsAction] Error reconnecting TTS after interrupt')
       this._wsClient.close(1011, 'TTS reconnection error')
       this._isAborting = false
+      this._isReconnecting = false
       return
     }
+    this._isReconnecting = false
     this._isAborting = false
   }
 }

@@ -1,6 +1,4 @@
-import { wsUpdateConfigRequestValidator } from './model'
-
-export type WsUpdateConfigRequest = typeof wsUpdateConfigRequestValidator.static
+import type { WsUpdateConfigRequest } from './model'
 
 abstract class WsBaseResponseSuccess {
   protected constructor(

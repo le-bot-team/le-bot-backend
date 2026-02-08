@@ -52,9 +52,11 @@ export abstract class Chat {
         break
       }
       case 'clearContext': {
+        // TODO: Implement context clearing (reset conversation state in ApiWrapper)
         break
       }
       case 'cancelOutput': {
+        // TODO: Implement output cancellation (abort ongoing Dify/TTS pipeline)
         break
       }
       default: {
@@ -66,7 +68,7 @@ export abstract class Chat {
   }
 }
 
-export const chatService = new Elysia({ name: 'chat/service' }).state({
+export const chatService = new Elysia({ name: 'chat.service' }).state({
   wsIdToUserIdMap: new Map<string, string>(),
   wsIdToApiWrapperMap: new Map<string, ApiWrapper>(),
 })
