@@ -56,9 +56,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth', tags: ['Auth'] })
       body: 'emailPasswordReqBody',
       response: {
         200: 'emailPasswordRespBody',
-        400: 'errorRespBody',
         401: 'errorRespBody',
-        404: 'errorRespBody',
         500: 'errorRespBody',
       },
     },
@@ -84,13 +82,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth', tags: ['Auth'] })
   )
   .get(
     '/validate',
-    () => {
-      try {
-        return { success: true as const, data: undefined }
-      } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
-      }
-    },
+    () => ({ success: true as const, data: undefined }),
     {
       checkAccessToken: true,
       response: {

@@ -23,26 +23,6 @@ const emailResetReqBody = t.Object({
   newPassword: t.String({ minLength: 8 }),
 })
 
-const phoneChallengeReqBody = t.Object({
-  phone: t.String({ format: 'phone' }),
-})
-
-const phoneCodeReqBody = t.Object({
-  phone: t.String({ format: 'phone' }),
-  code: t.String({ maxLength: 6, minLength: 6 }),
-})
-
-const phonePasswordReqBody = t.Object({
-  phone: t.String({ format: 'phone' }),
-  password: t.String({ minLength: 8 }),
-})
-
-const phoneResetReqBody = t.Object({
-  phone: t.String({ format: 'phone' }),
-  code: t.String({ maxLength: 6, minLength: 6 }),
-  newPassword: t.String({ minLength: 8 }),
-})
-
 // Response body schemas
 const emailCodeRespBody = buildSuccessRespBody(
   t.Object({
@@ -77,10 +57,6 @@ export const authModel = new Elysia({ name: 'auth.model' }).model({
   emailCodeReqBody,
   emailPasswordReqBody,
   emailResetReqBody,
-  phoneChallengeReqBody,
-  phoneCodeReqBody,
-  phonePasswordReqBody,
-  phoneResetReqBody,
   emailCodeRespBody,
   emailChallengeRespBody,
   emailPasswordRespBody,

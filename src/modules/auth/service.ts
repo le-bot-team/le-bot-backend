@@ -5,12 +5,12 @@ import nodemailer from 'nodemailer'
 import { log } from '@/log'
 import { buildErrorResponse, buildSuccessResponse } from '@/utils/common'
 
+import { createNewUserAndProfile, getUserByEmail, updatePasswordByEmail } from './repository'
 import {
-  createNewUserAndProfile,
-  getUserByEmail,
-  updatePasswordByEmail,
-} from './repository'
-import { buildAccessTokenRedisKey, buildChallengeCodeRedisKey } from './utils'
+  buildAccessTokenRedisKey,
+  buildChallengeCodeRedisKey,
+  getUserIdByAccessToken,
+} from './utils'
 
 const transport = nodemailer.createTransport({
   host: Bun.env.SMTP_HOST,
@@ -21,16 +21,13 @@ const transport = nodemailer.createTransport({
   },
 })
 
-export const getUserIdByAccessToken = async (token: string): Promise<string | null> => {
-  return await redis.get(buildAccessTokenRedisKey(token))
+const consumeEmailCode = async (email: string, code: string): Promise<boolean> => {
+  const storedCode = await redis.getdel(buildChallengeCodeRedisKey(email))
+  return !!storedCode && storedCode === code
 }
 
-export const setAccessToken = async (token: string, userId: string): Promise<void> => {
+const setAccessToken = async (token: string, userId: string): Promise<void> => {
   await redis.set(buildAccessTokenRedisKey(token), userId, 'EX', Number(Bun.env.TTL_ACCESS_TOKEN))
-}
-
-export const deleteAccessToken = async (token: string): Promise<void> => {
-  await redis.del(buildAccessTokenRedisKey(token))
 }
 
 export abstract class Auth {
@@ -48,7 +45,7 @@ export abstract class Auth {
     )
     try {
       await transport.sendMail({
-        from: 'Le Bot Official <noreply@studio26f.org>',
+        from: Bun.env.SMTP_FROM,
         to: email,
         subject: '[Le Bot] 校验您的电子邮件地址 Verify your email address',
         html: (await Bun.file('src/modules/auth/assets/emailChallenge.html').text()).replace(
@@ -63,22 +60,10 @@ export abstract class Auth {
     }
   }
 
-  static async verifyEmailCode(email: string, code: string): Promise<boolean> {
-    const storedCode = await redis.get(buildChallengeCodeRedisKey(email))
-    return !!storedCode && storedCode === code
-  }
-
-  static async deleteEmailCode(email: string): Promise<void> {
-    await redis.del(buildChallengeCodeRedisKey(email))
-  }
-
   static async verifyEmailAndLogin(email: string, code: string) {
-    if (!(await Auth.verifyEmailCode(email, code))) {
+    if (!(await consumeEmailCode(email, code))) {
       return buildErrorResponse(400, 'Invalid code')
     }
-
-    // Delete code immediately after successful verification to prevent replay attacks
-    await Auth.deleteEmailCode(email)
 
     const selectedUser = await getUserByEmail(email)
     if (!selectedUser) {
@@ -103,14 +88,11 @@ export abstract class Auth {
 
   static async loginWithPassword(email: string, password: string) {
     const selectedUser = await getUserByEmail(email)
-    if (!selectedUser) {
-      return buildErrorResponse(404, 'User not found')
-    }
-    if (!selectedUser.passwordHash?.length) {
-      return buildErrorResponse(400, 'No password set, please use code to sign in')
+    if (!selectedUser || !selectedUser.passwordHash?.length) {
+      return buildErrorResponse(401, 'Invalid email or password')
     }
     if (!(await Bun.password.verify(password, selectedUser.passwordHash))) {
-      return buildErrorResponse(401, 'Invalid password')
+      return buildErrorResponse(401, 'Invalid email or password')
     }
 
     const accessToken = Bun.randomUUIDv7()
@@ -124,7 +106,7 @@ export abstract class Auth {
   }
 
   static async resetPassword(email: string, code: string, newPassword: string) {
-    if (!(await Auth.verifyEmailCode(email, code))) {
+    if (!(await consumeEmailCode(email, code))) {
       return buildErrorResponse(400, 'Invalid code')
     }
     const passwordHash = await Bun.password.hash(newPassword, {
@@ -134,11 +116,11 @@ export abstract class Auth {
     if (!updateResult.length) {
       return buildErrorResponse(404, 'User not found')
     }
-    await Auth.deleteEmailCode(email)
     return buildSuccessResponse()
   }
 }
 
+// noinspection JSUnusedGlobalSymbols
 export const authService = new Elysia({ name: 'auth/service' }).macro({
   checkAccessToken: {
     async resolve({ headers }) {
