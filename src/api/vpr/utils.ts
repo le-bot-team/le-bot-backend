@@ -24,12 +24,9 @@ import type {
  */
 export const getUsers = async (): Promise<VprGetUsersResponse> => {
   try {
-    const response = await Bun.fetch(
-      `${Bun.env.VPR_URL}/api/v1/vpr/users`,
-      {
-        method: 'GET',
-      },
-    )
+    const response = await Bun.fetch(`${Bun.env.VPR_URL}/api/v1/vpr/users`, {
+      method: 'GET',
+    })
     if (!response.ok) {
       console.error(response)
       return {
@@ -52,16 +49,11 @@ export const getUsers = async (): Promise<VprGetUsersResponse> => {
  * Delete user and all associated data (use with caution)
  * @param userId User ID
  */
-export const deleteUser = async (
-  userId: string,
-): Promise<VprDeleteUserResponse> => {
+export const deleteUser = async (userId: string): Promise<VprDeleteUserResponse> => {
   try {
-    const response = await Bun.fetch(
-      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}`,
-      {
-        method: 'DELETE',
-      },
-    )
+    const response = await Bun.fetch(`${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}`, {
+      method: 'DELETE',
+    })
     if (!response.ok) {
       console.error(response)
       return {
@@ -90,14 +82,11 @@ export const recognize = async (
   payload: VprRecognizeRequest,
 ): Promise<VprRecognizeResponse> => {
   try {
-    const response = await Bun.fetch(
-      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/recognize`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      },
-    )
+    const response = await Bun.fetch(`${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/recognize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
     if (!response.ok) {
       console.error(response)
       return {
@@ -126,14 +115,11 @@ export const register = async (
   payload: VprRegisterRequest,
 ): Promise<VprRegisterResponse> => {
   try {
-    const response = await Bun.fetch(
-      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/register`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      },
-    )
+    const response = await Bun.fetch(`${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
     if (!response.ok) {
       console.error(response)
       return {
@@ -156,16 +142,11 @@ export const register = async (
  * Get all persons for a specific user
  * @param userId User ID
  */
-export const getPersons = async (
-  userId: string,
-): Promise<VprGetUserPersons> => {
+export const getPersons = async (userId: string): Promise<VprGetUserPersons> => {
   try {
-    const response = await Bun.fetch(
-      `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/persons`,
-      {
-        method: 'GET',
-      },
-    )
+    const response = await Bun.fetch(`${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/persons`, {
+      method: 'GET',
+    })
     if (!response.ok) {
       console.error(response)
       return {
@@ -223,10 +204,7 @@ export const deletePerson = async (
  * @param userId User ID
  * @param personId Person ID
  */
-export const getPerson = async (
-  userId: string,
-  personId: string,
-): Promise<VprGetUserPerson> => {
+export const getPerson = async (userId: string, personId: string): Promise<VprGetUserPerson> => {
   try {
     const response = await Bun.fetch(
       `${Bun.env.VPR_URL}/api/v1/vpr/users/${userId}/persons/${personId}`,

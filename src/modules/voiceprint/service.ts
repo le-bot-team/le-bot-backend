@@ -75,9 +75,7 @@ export abstract class Voiceprint {
           )
           if (!selectPerson) {
             // Remove orphaned person from VPR since not found in DB
-            vprApi
-              .deletePerson(person.person_id)
-              .catch((error) => log.warn(error))
+            vprApi.deletePerson(person.person_id).catch((error) => log.warn(error))
             return undefined
           }
           return {
@@ -130,11 +128,7 @@ export abstract class Voiceprint {
     })
   }
 
-  static async updatePerson(
-    userId: string,
-    personId: string,
-    data: UpdatePersonReqBody,
-  ) {
+  static async updatePerson(userId: string, personId: string, data: UpdatePersonReqBody) {
     let failedMessage = ''
 
     const updatePayload: Parameters<typeof updatePerson>[2] = {}
@@ -176,11 +170,7 @@ export abstract class Voiceprint {
     return buildSuccessResponse(result.data)
   }
 
-  static async deleteVoice(
-    userId: string,
-    personId: string,
-    voiceId: string,
-  ) {
+  static async deleteVoice(userId: string, personId: string, voiceId: string) {
     const result = await new VprApi(userId).deleteVoice(personId, voiceId)
     if (!result.success) {
       return buildErrorResponse(400, result.message)
@@ -188,12 +178,7 @@ export abstract class Voiceprint {
     return buildSuccessResponse()
   }
 
-  static async updateVoice(
-    userId: string,
-    personId: string,
-    voiceId: string,
-    audio: string,
-  ) {
+  static async updateVoice(userId: string, personId: string, voiceId: string, audio: string) {
     const result = await new VprApi(userId).updateVoice(personId, voiceId, {
       audio_data: audio,
     })

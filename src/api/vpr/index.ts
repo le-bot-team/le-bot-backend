@@ -40,9 +40,7 @@ export class VprApi {
    */
   set threshold(value: number) {
     if (value < 0 || value > 1) {
-      log.error(
-        `Invalid threshold value: ${value}. Must be between 0.0 and 1.0`,
-      )
+      log.error(`Invalid threshold value: ${value}. Must be between 0.0 and 1.0`)
       return
     }
     this._recognitionThreshold = value
@@ -89,10 +87,7 @@ export class VprApi {
    * @param isTemporal Whether the enrollment should be treated as temporal (auto-cleanup)
    * @returns Registration result
    */
-  async register(
-    audioBase64: string,
-    isTemporal = true,
-  ): Promise<VprRegisterResponse> {
+  async register(audioBase64: string, isTemporal = true): Promise<VprRegisterResponse> {
     log.debug(`Registering new person for user '${this._userId}'`)
 
     const result = await register(this._userId, {
@@ -169,11 +164,7 @@ export class VprApi {
    * @param voiceId Voice ID to update
    * @param payload Update data
    */
-  async updateVoice(
-    personId: string,
-    voiceId: string,
-    payload: VprUpdateVoiceRequest,
-  ) {
+  async updateVoice(personId: string, voiceId: string, payload: VprUpdateVoiceRequest) {
     return updateVoice(this._userId, personId, voiceId, payload)
   }
 }

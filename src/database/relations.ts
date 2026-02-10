@@ -74,19 +74,16 @@ export const groupsRelations = relations(groups, ({ many }) => ({
   deviceGroupData: many(deviceGroupData),
 }))
 
-export const deviceGroupDataRelations = relations(
-  deviceGroupData,
-  ({ one }) => ({
-    device: one(devices, {
-      fields: [deviceGroupData.deviceId],
-      references: [devices.id],
-    }),
-    group: one(groups, {
-      fields: [deviceGroupData.groupId],
-      references: [groups.id],
-    }),
+export const deviceGroupDataRelations = relations(deviceGroupData, ({ one }) => ({
+  device: one(devices, {
+    fields: [deviceGroupData.deviceId],
+    references: [devices.id],
   }),
-)
+  group: one(groups, {
+    fields: [deviceGroupData.groupId],
+    references: [groups.id],
+  }),
+}))
 
 export const deviceUserDataRelations = relations(deviceUserData, ({ one }) => ({
   device: one(devices, {

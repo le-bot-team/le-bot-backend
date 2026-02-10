@@ -70,8 +70,7 @@ const parseMessage = (message: ArrayBuffer) => {
     serializationType: serializationType as SerializationType,
     compressionType: compressionType as CompressionType,
     reserved,
-    headerExtensions:
-      headerSize > 0b0001 ? message.slice(4, 4 * headerSize) : undefined,
+    headerExtensions: headerSize > 0b0001 ? message.slice(4, 4 * headerSize) : undefined,
     payload: message.slice(4 * headerSize, message.byteLength),
   }
 }
@@ -79,13 +78,8 @@ const parseMessage = (message: ArrayBuffer) => {
 export const parseResponseMessage = (
   rawMessage: ArrayBuffer,
 ): AsrResponse | TtsResponse | ErrorResponse => {
-  const {
-    messageType,
-    messageFlag,
-    serializationType,
-    compressionType,
-    payload,
-  } = parseMessage(rawMessage)
+  const { messageType, messageFlag, serializationType, compressionType, payload } =
+    parseMessage(rawMessage)
 
   if (messageFlag === MessageFlagType.withEvent) {
     const dataView = new DataView(payload)
@@ -100,9 +94,7 @@ export const parseResponseMessage = (
       case TtsEventType.ttsResponse: {
         const idLength = dataView.getUint32(4)
         const idOffset = 8
-        const id = new TextDecoder().decode(
-          payload.slice(8, idOffset + idLength),
-        )
+        const id = new TextDecoder().decode(payload.slice(8, idOffset + idLength))
         const dataLength = dataView.getUint32(idOffset + idLength)
         const dataOffset = idOffset + idLength + 4
         if (dataOffset + dataLength > payload.byteLength) {
@@ -110,11 +102,7 @@ export const parseResponseMessage = (
         }
         const dataBytes =
           compressionType === CompressionType.gzip
-            ? new Uint8Array(
-                Bun.gunzipSync(
-                  payload.slice(dataOffset, dataOffset + dataLength),
-                ),
-              )
+            ? new Uint8Array(Bun.gunzipSync(payload.slice(dataOffset, dataOffset + dataLength)))
             : new Uint8Array(payload, dataOffset, dataLength)
         return {
           responseType: ResponseType.ttsResponse,
@@ -140,9 +128,7 @@ export const parseResponseMessage = (
         }
       }
       default: {
-        throw new Error(
-          'Response message has an unsupported event type: ' + ttsEventType,
-        )
+        throw new Error('Response message has an unsupported event type: ' + ttsEventType)
       }
     }
   }
@@ -157,9 +143,7 @@ export const parseResponseMessage = (
 
   const dataBytes =
     compressionType === CompressionType.gzip
-      ? new Uint8Array(
-          Bun.gunzipSync(payload.slice(dataOffset, dataOffset + dataLength)),
-        )
+      ? new Uint8Array(Bun.gunzipSync(payload.slice(dataOffset, dataOffset + dataLength)))
       : new Uint8Array(payload, dataOffset, dataLength)
 
   switch (messageType) {
@@ -239,10 +223,7 @@ export const serializeRequestMessage = (
   return buffer
 }
 
-export const createAsrRequestData = (
-  userId: string,
-  deviceId: string,
-): AsrRequest => {
+export const createAsrRequestData = (userId: string, deviceId: string): AsrRequest => {
   return {
     user: {
       uid: userId,

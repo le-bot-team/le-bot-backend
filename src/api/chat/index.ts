@@ -100,9 +100,7 @@ export class ChatApi {
 
         try {
           const response: ChatResponse = JSON.parse(
-            typeof event.data === 'string'
-              ? event.data
-              : new TextDecoder().decode(event.data),
+            typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data),
           )
 
           switch (response.type) {

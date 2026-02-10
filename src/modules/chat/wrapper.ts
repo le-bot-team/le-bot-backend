@@ -2,10 +2,12 @@ import { ElysiaWS } from 'elysia/ws'
 
 import { VprApi } from '@/api/vpr'
 import { ChatApi } from '@/api/chat'
+import { WakeApi } from '@/api/wake'
 import { AsrApi, TtsApi } from '@/api/openspeech'
 import { log } from '@/log'
 
 import type { WsUpdateConfigRequest } from './model'
+import { getPersonByUserAndId } from './repository'
 import {
   WsChatCompleteResponseSuccess,
   WsOutputAudioCompleteResponseSuccess,
@@ -21,6 +23,7 @@ export class ApiWrapper {
   private readonly _chatApi: ChatApi
   private readonly _ttsApi: TtsApi
   private readonly _vprApi: VprApi
+  private readonly _wakeApi: WakeApi
 
   private _audioQueue: { buffer: string; isComplete: boolean }[] = []
   private _audioBufferForVpr: string[] = []
@@ -29,6 +32,7 @@ export class ApiWrapper {
   private _isAborting = false
   private _isFirstAudio = true
   private _isProcessingAudioQueue = false
+  private _isProcessingWakeAudio = false
   private _isReady = true
   private _isReconnecting = false
   private _outputText = false
@@ -44,6 +48,7 @@ export class ApiWrapper {
     this._chatApi = new ChatApi(this._userId, this._nickname)
     this._ttsApi = new TtsApi(this._wsClient.id, this._userId)
     this._vprApi = new VprApi(this._userId, 0.6)
+    this._wakeApi = new WakeApi(this._userId, this._nickname)
 
     this._asrApi.onFinish = async (recognized) => {
       if (this._outputText) {
@@ -141,10 +146,7 @@ export class ApiWrapper {
           },
           `Voice recognized: '${recognizeResult.data.person_id}'`,
         )
-        if (
-          this._isReady &&
-          this._currentPersonId !== recognizeResult.data.person_id
-        ) {
+        if (this._isReady && this._currentPersonId !== recognizeResult.data.person_id) {
           this._currentPersonId = recognizeResult.data.person_id
         } else if (this._currentPersonId === recognizeResult.data.person_id) {
           // ongoing session and same speaker, interrupt and restart
@@ -165,9 +167,7 @@ export class ApiWrapper {
             )
             this._currentPersonId = result.data.voice_id
           } else {
-            log.error(
-              `[VPR] Voice print registration failed: ${result?.message}`,
-            )
+            log.error(`[VPR] Voice print registration failed: ${result?.message}`)
           }
         }
       }
@@ -261,6 +261,144 @@ export class ApiWrapper {
     return true
   }
 
+  /**
+   * Handle wake audio: perform ASR, VPR, lookup owner_name from DB, call wake API, then TTS.
+   * This is a separate flow from the normal audio stream processing.
+   */
+  async inputWakeAudio(buffer: string): Promise<boolean> {
+    if (this._isProcessingWakeAudio) {
+      log.warn('[ApiWrapper] Wake audio already being processed, ignoring')
+      return false
+    }
+
+    this._isProcessingWakeAudio = true
+    this._isReady = false
+
+    try {
+      log.info('[ApiWrapper] Processing wake audio')
+
+      // Step 1: Perform ASR and VPR in parallel
+      const [asrResult, vprResult] = await Promise.all([
+        AsrApi.recognizeOnce(this._userId, this._deviceId, buffer),
+        this._vprApi.recognize(buffer),
+      ])
+
+      log.info(
+        { asrText: asrResult, vprSuccess: vprResult.success },
+        '[ApiWrapper] Wake audio ASR and VPR completed',
+      )
+
+      // Step 2: Get person_id and owner_name from VPR result and DB
+      let personId: string | undefined
+      let ownerName: string | undefined
+
+      if (vprResult.success) {
+        personId = vprResult.data.person_id
+        log.info(
+          { personId, confidence: vprResult.data.confidence },
+          '[ApiWrapper] Voice recognized for wake',
+        )
+
+        // Lookup owner_name from persons table
+        const person = await getPersonByUserAndId(this._userId, personId)
+        if (person?.name) {
+          ownerName = person.name
+          log.info({ ownerName }, '[ApiWrapper] Found owner name from DB')
+        }
+      } else {
+        log.info('[ApiWrapper] Voice not recognized for wake, proceeding without person_id')
+      }
+
+      // Step 3: Ensure TTS connection is ready
+      await this._ensureTtsConnection()
+
+      // Step 4: Call wake API with the gathered information
+      const wakeResponse = await this._wakeApi.wakeResponse(personId, asrResult)
+
+      log.info({ responseLength: wakeResponse.length }, '[ApiWrapper] Wake API response received')
+
+      // Step 5: Send response text to TTS
+      if (wakeResponse.length > 0) {
+        if (this._outputText) {
+          this._wsClient.send(
+            new WsOutputTextCompleteResponseSuccess(
+              this._wsClient.id,
+              this._wsClient.id,
+              this._conversationId,
+              'user',
+              asrResult,
+            ),
+          )
+          this._wsClient.send(
+            new WsOutputTextCompleteResponseSuccess(
+              this._wsClient.id,
+              this._wsClient.id,
+              this._conversationId,
+              'assistant',
+              wakeResponse,
+            ),
+          )
+        }
+
+        this._ttsApi.sendText(wakeResponse)
+
+        this._wsClient.send(
+          new WsChatCompleteResponseSuccess(
+            this._wsClient.id,
+            this._wsClient.id,
+            this._conversationId,
+            0,
+            0,
+          ),
+        )
+      }
+
+      // Update current person ID if recognized
+      if (personId) {
+        this._currentPersonId = personId
+      }
+
+      return true
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') {
+        log.info('[ApiWrapper] Wake audio processing aborted')
+        return false
+      }
+      log.error(error, '[ApiWrapper] Error processing wake audio')
+      return false
+    } finally {
+      this._isProcessingWakeAudio = false
+    }
+  }
+
+  /**
+   * Ensure TTS connection is established and session is started.
+   */
+  private async _ensureTtsConnection(): Promise<boolean> {
+    if (this._ttsApi.isConnected) {
+      return true
+    }
+
+    try {
+      const ttsConnected = await this._ttsApi.connect()
+      if (!ttsConnected) {
+        log.error('[ApiWrapper] Failed to connect TTS for wake audio')
+        return false
+      }
+
+      const sessionStarted = await this._ttsApi.startSession()
+      if (!sessionStarted) {
+        log.error('[ApiWrapper] Failed to start TTS session for wake audio')
+        return false
+      }
+
+      return true
+    } catch (error) {
+      log.error(error, '[ApiWrapper] Error establishing TTS connection for wake audio')
+      return false
+    }
+  }
+
   private async _processAudioQueue(): Promise<void> {
     if (this._isProcessingAudioQueue) {
       return
@@ -276,11 +414,7 @@ export class ApiWrapper {
         }
 
         // If this is the first audio packet and not connected, establish connections first
-        if (
-          this._isFirstAudio &&
-          !this._isConnectionReady() &&
-          !this._isConnecting()
-        ) {
+        if (this._isFirstAudio && !this._isConnectionReady() && !this._isConnecting()) {
           await this._establishConnections()
         }
 
@@ -335,9 +469,9 @@ export class ApiWrapper {
       log.warn('[VPR] No audio data buffered for voice print processing')
       return null
     }
-    return Buffer.concat(
-      this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64')),
-    ).toString('base64')
+    return Buffer.concat(this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64'))).toString(
+      'base64',
+    )
   }
 
   private async _handleVoicePrintRecognition() {
@@ -402,9 +536,7 @@ export class ApiWrapper {
       }
 
       this._isFirstAudio = false
-      log.info(
-        '[WsAction] API connections and TTS session established successfully',
-      )
+      log.info('[WsAction] API connections and TTS session established successfully')
     } catch (error) {
       log.error(error, '[WsAction] Failed to establish API connections')
     }

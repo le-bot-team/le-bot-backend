@@ -40,10 +40,7 @@ export abstract class Profiles {
     })
   }
 
-  static async updateProfileInfo(
-    userId: string,
-    data: UpdateProfileInfoReqBody,
-  ) {
+  static async updateProfileInfo(userId: string, data: UpdateProfileInfoReqBody) {
     if (!userId?.length) {
       return buildErrorResponse(400, 'User ID is required')
     }
@@ -51,9 +48,7 @@ export abstract class Profiles {
     const updateResult = await updateUserProfile(userId, {
       ...data,
       avatarHash: data.avatar
-        ? new Bun.CryptoHasher('blake2b512')
-            .update(data.avatar)
-            .digest('hex')
+        ? new Bun.CryptoHasher('blake2b512').update(data.avatar).digest('hex')
         : undefined,
       updatedAt: new Date().toISOString(),
     })

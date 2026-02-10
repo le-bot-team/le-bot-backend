@@ -22,10 +22,7 @@ export const chatRoute = new Elysia({ prefix: '/api/v1/chat', tags: ['Chat'] })
       }
       log.debug({ userId: auth.userId, wsId: ws.id }, 'WsClient opened')
       store.wsIdToUserIdMap.set(ws.id, auth.userId)
-      store.wsIdToApiWrapperMap.set(
-        ws.id,
-        new ApiWrapper(ws, auth.userId, auth.nickname, ''),
-      )
+      store.wsIdToApiWrapperMap.set(ws.id, new ApiWrapper(ws, auth.userId, auth.nickname, ''))
       ws.send(new WsEstablishConnectionResponseSuccess(ws.id))
     },
     close: (ws) => {

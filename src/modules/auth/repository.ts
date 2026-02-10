@@ -8,9 +8,7 @@ export const getUserByEmail = async (email: string) =>
 
 export const createNewUserAndProfile = async (email: string) => {
   return await db.transaction(async (tx) => {
-    const insertedUser = (
-      await tx.insert(users).values({ email }).returning({ id: users.id })
-    )[0]
+    const insertedUser = (await tx.insert(users).values({ email }).returning({ id: users.id }))[0]
     if (!insertedUser) {
       throw new Error('Failed to create user')
     }
@@ -25,8 +23,4 @@ export const createNewUserAndProfile = async (email: string) => {
 }
 
 export const updatePasswordByEmail = async (email: string, passwordHash: string) =>
-  db
-    .update(users)
-    .set({ passwordHash })
-    .where(eq(users.email, email))
-    .returning({ id: users.id })
+  db.update(users).set({ passwordHash }).where(eq(users.email, email)).returning({ id: users.id })

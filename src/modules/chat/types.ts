@@ -181,11 +181,7 @@ export class WsChatCompleteResponseError extends WsBaseResponseError {
     private readonly completedAt: number,
     private readonly errors: { code: number; message: string }[],
   ) {
-    super(
-      messageId,
-      'chatComplete',
-      'Some error occurred while completing the chat',
-    )
+    super(messageId, 'chatComplete', 'Some error occurred while completing the chat')
   }
 
   override serialize() {

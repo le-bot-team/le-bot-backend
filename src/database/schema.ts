@@ -14,16 +14,9 @@ import {
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
-export const deviceSharePermissionType = pgEnum(
-  'device_share_permission_type',
-  ['view', 'control'],
-)
+export const deviceSharePermissionType = pgEnum('device_share_permission_type', ['view', 'control'])
 export const deviceType = pgEnum('device_type', ['robot'])
-export const groupRoleType = pgEnum('group_role_type', [
-  'owner',
-  'admin',
-  'member',
-])
+export const groupRoleType = pgEnum('group_role_type', ['owner', 'admin', 'member'])
 export const messageType = pgEnum('message_type', [
   'question',
   'answer',
@@ -59,10 +52,7 @@ export const devices = pgTable(
     config: jsonb(),
   },
   (table) => [
-    index('idx_devices_owner').using(
-      'btree',
-      table.ownerId.asc().nullsLast().op('uuid_ops'),
-    ),
+    index('idx_devices_owner').using('btree', table.ownerId.asc().nullsLast().op('uuid_ops')),
     foreignKey({
       columns: [table.ownerId],
       foreignColumns: [users.id],
@@ -92,21 +82,12 @@ export const users = pgTable(
     phone: text(),
   },
   (table) => [
-    index('idx_users_email').using(
-      'btree',
-      table.email.asc().nullsLast().op('text_ops'),
-    ),
-    index('idx_users_phone').using(
-      'btree',
-      table.phone.asc().nullsLast().op('text_ops'),
-    ),
+    index('idx_users_email').using('btree', table.email.asc().nullsLast().op('text_ops')),
+    index('idx_users_phone').using('btree', table.phone.asc().nullsLast().op('text_ops')),
     unique('users_username_key').on(table.username),
     unique('users_email_key').on(table.email),
     unique('users_phone_key').on(table.phone),
-    check(
-      'check_email_or_phone',
-      sql`(email IS NOT NULL) OR (phone IS NOT NULL)`,
-    ),
+    check('check_email_or_phone', sql`(email IS NOT NULL) OR (phone IS NOT NULL)`),
     check('users_id_not_null', sql`NOT NULL id`),
   ],
 )
@@ -216,10 +197,7 @@ export const groupMembers = pgTable(
     role: groupRoleType().default('member'),
   },
   (table) => [
-    index('idx_group_members_user').using(
-      'btree',
-      table.userId.asc().nullsLast().op('uuid_ops'),
-    ),
+    index('idx_group_members_user').using('btree', table.userId.asc().nullsLast().op('uuid_ops')),
     foreignKey({
       columns: [table.groupId],
       foreignColumns: [groups.id],
@@ -307,10 +285,7 @@ export const deviceShares = pgTable(
     permission: deviceSharePermissionType().default('view'),
   },
   (table) => [
-    index('idx_device_shares_user').using(
-      'btree',
-      table.userId.asc().nullsLast().op('uuid_ops'),
-    ),
+    index('idx_device_shares_user').using('btree', table.userId.asc().nullsLast().op('uuid_ops')),
     foreignKey({
       columns: [table.deviceId],
       foreignColumns: [devices.id],
