@@ -1,7 +1,5 @@
 import { Elysia } from 'elysia'
 
-import { handleUncaughtError } from '@/utils/common'
-
 import { authModel } from './model'
 import { Auth, authService } from './service'
 
@@ -10,13 +8,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth', tags: ['Auth'] })
   .use(authService)
   .post(
     '/email/code',
-    async ({ body: { email, code } }) => {
-      try {
-        return await Auth.verifyEmailAndLogin(email, code)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
-    },
+    async ({ body: { email, code } }) => await Auth.verifyEmailAndLogin(email, code),
     {
       body: 'emailCodeReqBody',
       response: {
@@ -26,32 +18,16 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth', tags: ['Auth'] })
       },
     },
   )
-  .post(
-    '/email/challenge',
-    async ({ body: { email } }) => {
-      try {
-        return await Auth.emailChallenge(email)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
+  .post('/email/challenge', async ({ body: { email } }) => await Auth.emailChallenge(email), {
+    body: 'emailChallengeReqBody',
+    response: {
+      200: 'emailChallengeRespBody',
+      500: 'errorRespBody',
     },
-    {
-      body: 'emailChallengeReqBody',
-      response: {
-        200: 'emailChallengeRespBody',
-        500: 'errorRespBody',
-      },
-    },
-  )
+  })
   .post(
     '/email/password',
-    async ({ body: { email, password } }) => {
-      try {
-        return await Auth.loginWithPassword(email, password)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
-    },
+    async ({ body: { email, password } }) => await Auth.loginWithPassword(email, password),
     {
       body: 'emailPasswordReqBody',
       response: {
@@ -63,13 +39,8 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth', tags: ['Auth'] })
   )
   .post(
     '/email/reset',
-    async ({ body: { email, code, newPassword } }) => {
-      try {
-        return await Auth.resetPassword(email, code, newPassword)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
-    },
+    async ({ body: { email, code, newPassword } }) =>
+      await Auth.resetPassword(email, code, newPassword),
     {
       body: 'emailResetReqBody',
       response: {

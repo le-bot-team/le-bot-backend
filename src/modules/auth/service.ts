@@ -31,7 +31,11 @@ const consumeEmailCode = async (email: string, code: string): Promise<boolean> =
 }
 
 const setAccessToken = async (token: string, userId: string): Promise<void> => {
-  await redis.set(buildAccessTokenRedisKey(token), userId, 'EX', Number(Bun.env.TTL_ACCESS_TOKEN))
+  await redis.send('SETEX', [
+    buildAccessTokenRedisKey(token),
+    String(Bun.env.TTL_ACCESS_TOKEN),
+    userId,
+  ])
 }
 
 export abstract class Auth {
@@ -41,12 +45,11 @@ export abstract class Auth {
       .join('')
       .slice(0, 6)
       .toUpperCase()
-    await redis.set(
+    await redis.send('SETEX', [
       buildChallengeCodeRedisKey(email),
+      String(Bun.env.TTL_CHALLENGE_CODE),
       code,
-      'EX',
-      Number(Bun.env.TTL_CHALLENGE_CODE),
-    )
+    ])
     try {
       await transport.sendMail({
         from: Bun.env.SMTP_FROM,

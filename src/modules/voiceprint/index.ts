@@ -1,7 +1,6 @@
 import { Elysia } from 'elysia'
 
 import { authService } from '@/modules/auth/service'
-import { handleUncaughtError } from '@/utils/common'
 
 import { voiceprintModel } from './model'
 import { Voiceprint, voiceprintService } from './service'
@@ -10,72 +9,36 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
   .use(authService)
   .use(voiceprintModel)
   .use(voiceprintService)
-  .post(
-    '/recognize',
-    async ({ body, userId }) => {
-      try {
-        return await Voiceprint.recognize(userId, body.audio)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
+  .post('/recognize', async ({ body, userId }) => await Voiceprint.recognize(userId, body.audio), {
+    body: 'recognizeReqBody',
+    resolveAccessToken: true,
+    response: {
+      200: 'recognizeRespBody',
+      400: 'errorRespBody',
+      404: 'errorRespBody',
+      500: 'errorRespBody',
     },
-    {
-      body: 'recognizeReqBody',
-      resolveAccessToken: true,
-      response: {
-        200: 'recognizeRespBody',
-        400: 'errorRespBody',
-        404: 'errorRespBody',
-        500: 'errorRespBody',
-      },
+  })
+  .post('/register', async ({ body, userId }) => await Voiceprint.register(userId, body), {
+    body: 'registerReqBody',
+    resolveAccessToken: true,
+    response: {
+      200: 'registerRespBody',
+      400: 'errorRespBody',
+      500: 'errorRespBody',
     },
-  )
-  .post(
-    '/register',
-    async ({ body, userId }) => {
-      try {
-        return await Voiceprint.register(userId, body)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
+  })
+  .get('/persons', async ({ userId }) => await Voiceprint.getPersons(userId), {
+    resolveAccessToken: true,
+    response: {
+      200: 'personsRespBody',
+      400: 'errorRespBody',
+      500: 'errorRespBody',
     },
-    {
-      body: 'registerReqBody',
-      resolveAccessToken: true,
-      response: {
-        200: 'registerRespBody',
-        400: 'errorRespBody',
-        500: 'errorRespBody',
-      },
-    },
-  )
-  .get(
-    '/persons',
-    async ({ userId }) => {
-      try {
-        return await Voiceprint.getPersons(userId)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
-    },
-    {
-      resolveAccessToken: true,
-      response: {
-        200: 'personsRespBody',
-        400: 'errorRespBody',
-        500: 'errorRespBody',
-      },
-    },
-  )
+  })
   .delete(
     '/persons/:personId',
-    async ({ params, userId }) => {
-      try {
-        return await Voiceprint.deletePerson(userId, params.personId)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
-    },
+    async ({ params, userId }) => await Voiceprint.deletePerson(userId, params.personId),
     {
       resolveAccessToken: true,
       response: {
@@ -87,13 +50,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
   )
   .get(
     '/persons/:personId',
-    async ({ params, userId }) => {
-      try {
-        return await Voiceprint.getPerson(userId, params.personId)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
-    },
+    async ({ params, userId }) => await Voiceprint.getPerson(userId, params.personId),
     {
       resolveAccessToken: true,
       response: {
@@ -106,13 +63,8 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
   )
   .put(
     '/persons/:personId',
-    async ({ body, params, userId }) => {
-      try {
-        return await Voiceprint.updatePerson(userId, params.personId, body)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
-    },
+    async ({ body, params, userId }) =>
+      await Voiceprint.updatePerson(userId, params.personId, body),
     {
       body: 'updatePersonReqBody',
       resolveAccessToken: true,
@@ -125,13 +77,8 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
   )
   .post(
     '/persons/:personId/voices/add',
-    async ({ body, params, userId }) => {
-      try {
-        return await Voiceprint.addVoice(userId, params.personId, body.audio)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
-    },
+    async ({ body, params, userId }) =>
+      await Voiceprint.addVoice(userId, params.personId, body.audio),
     {
       body: 'addVoiceReqBody',
       resolveAccessToken: true,
@@ -144,13 +91,8 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
   )
   .delete(
     '/persons/:personId/voices/:voiceId',
-    async ({ params, userId }) => {
-      try {
-        return await Voiceprint.deleteVoice(userId, params.personId, params.voiceId)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
-    },
+    async ({ params, userId }) =>
+      await Voiceprint.deleteVoice(userId, params.personId, params.voiceId),
     {
       resolveAccessToken: true,
       response: {
@@ -162,13 +104,8 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
   )
   .put(
     '/persons/:personId/voices/:voiceId',
-    async ({ body, params, userId }) => {
-      try {
-        return await Voiceprint.updateVoice(userId, params.personId, params.voiceId, body.audio)
-      } catch (e) {
-        return handleUncaughtError(e, 500, 'Internal server error')
-      }
-    },
+    async ({ body, params, userId }) =>
+      await Voiceprint.updateVoice(userId, params.personId, params.voiceId, body.audio),
     {
       body: 'updateVoiceReqBody',
       resolveAccessToken: true,

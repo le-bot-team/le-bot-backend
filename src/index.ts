@@ -11,6 +11,7 @@ import { chatRoute } from '@/modules/chat'
 import { deviceRoute } from '@/modules/devices'
 import { profileRoute } from '@/modules/profiles'
 import { voiceprintRoute } from '@/modules/voiceprint'
+import { handleUncaughtError } from '@/utils/common'
 
 const staticFilesPrefix = '/public'
 
@@ -76,9 +77,8 @@ const app = new Elysia()
   .use(deviceRoute)
   .use(profileRoute)
   .use(voiceprintRoute)
-  .onError((ctx) => {
-    ctx.log?.error(ctx, ctx.error.toString())
-    return 'onError'
+  .onError(({ error }) => {
+    return handleUncaughtError(error, 500, 'Internal server error')
   })
   .listen(3000)
 
