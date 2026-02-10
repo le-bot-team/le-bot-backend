@@ -1,22 +1,45 @@
-import { and, eq } from 'drizzle-orm'
+import { and, DrizzleQueryError, eq } from 'drizzle-orm'
 
 import { db } from '@/database'
 import { persons } from '@/database/schema'
 
-export const getPersonsByUserId = async (userId: string) =>
-  db.select().from(persons).where(eq(persons.userId, userId))
+export const getPersonsByUserIdNoExcept = async (userId: string) => {
+  try {
+    return db.select().from(persons).where(eq(persons.userId, userId))
+  } catch (error) {
+    if (!(error instanceof DrizzleQueryError)) {
+      throw error
+    }
+  }
+  return []
+}
 
-export const getPersonByUserAndId = async (userId: string, personId: string) =>
-  (
-    await db
-      .select()
-      .from(persons)
-      .where(and(eq(persons.userId, userId), eq(persons.id, personId)))
-      .limit(1)
-  )[0]
+export const getPersonByUserIdAndIdNoExcept = async (userId: string, personId: string) => {
+  try {
+    return (
+      await db
+        .select()
+        .from(persons)
+        .where(and(eq(persons.userId, userId), eq(persons.id, personId)))
+        .limit(1)
+    )[0]
+  } catch (error) {
+    if (!(error instanceof DrizzleQueryError)) {
+      throw error
+    }
+  }
+}
 
-export const insertPerson = async (data: typeof persons.$inferInsert) =>
-  db.insert(persons).values(data).returning()
+export const insertPersonNoExcept = async (data: typeof persons.$inferInsert) => {
+  try {
+    return db.insert(persons).values(data).returning()
+  } catch (error) {
+    if (!(error instanceof DrizzleQueryError)) {
+      throw error
+    }
+  }
+  return []
+}
 
 export const updatePerson = async (
   userId: string,

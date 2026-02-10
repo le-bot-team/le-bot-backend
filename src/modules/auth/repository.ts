@@ -1,10 +1,17 @@
-import { eq } from 'drizzle-orm'
+import { DrizzleQueryError, eq } from 'drizzle-orm'
 
 import { db } from '@/database'
 import { users, userProfiles } from '@/database/schema'
 
-export const getUserByEmail = async (email: string) =>
-  (await db.select().from(users).where(eq(users.email, email)).limit(1))[0]
+export const getUserByEmailNoExcept = async (email: string) => {
+  try {
+    return (await db.select().from(users).where(eq(users.email, email)).limit(1))[0]
+  } catch (error) {
+    if (!(error instanceof DrizzleQueryError)) {
+      throw error
+    }
+  }
+}
 
 export const createNewUserAndProfile = async (email: string) => {
   return await db.transaction(async (tx) => {

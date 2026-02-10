@@ -3,14 +3,14 @@ import { Elysia } from 'elysia'
 import { buildErrorResponse, buildSuccessResponse } from '@/utils/common'
 
 import type { UpdateProfileInfoReqBody } from './model'
-import { getUserProfileById, updateUserProfile } from './repository'
+import { getUserProfileByIdNoExcept, updateUserProfile } from './repository'
 
 export abstract class Profiles {
   static async getAvatar(userId: string) {
     if (!userId?.length) {
       return buildErrorResponse(400, 'User ID is required')
     }
-    const selectedUser = await getUserProfileById(userId)
+    const selectedUser = await getUserProfileByIdNoExcept(userId)
     if (!selectedUser) {
       return buildErrorResponse(404, 'User not found')
     }
@@ -25,7 +25,7 @@ export abstract class Profiles {
     if (!userId?.length) {
       return buildErrorResponse(400, 'User ID is required')
     }
-    const selectedUser = await getUserProfileById(userId)
+    const selectedUser = await getUserProfileByIdNoExcept(userId)
     if (!selectedUser) {
       return buildErrorResponse(404, 'User not found')
     }

@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
 
-import { buildErrorResponse } from '@/utils/common'
+import { handleUncaughtError } from '@/utils/common'
 
 import { authModel } from './model'
 import { Auth, authService } from './service'
@@ -14,7 +14,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth', tags: ['Auth'] })
       try {
         return await Auth.verifyEmailAndLogin(email, code)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -32,7 +32,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth', tags: ['Auth'] })
       try {
         return await Auth.emailChallenge(email)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -49,7 +49,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth', tags: ['Auth'] })
       try {
         return await Auth.loginWithPassword(email, password)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -67,7 +67,7 @@ export const authRoute = new Elysia({ prefix: '/api/v1/auth', tags: ['Auth'] })
       try {
         return await Auth.resetPassword(email, code, newPassword)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {

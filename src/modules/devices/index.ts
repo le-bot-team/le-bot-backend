@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia'
 
 import { authService } from '@/modules/auth/service'
-import { buildErrorResponse } from '@/utils/common'
+import { handleUncaughtError } from '@/utils/common'
 
 import { deviceModel } from './model'
 import { Devices, deviceService } from './service'
@@ -16,7 +16,7 @@ export const deviceRoute = new Elysia({ prefix: '/api/v1/devices', tags: ['Devic
       try {
         return await Devices.getOwnerDevices(userId)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {

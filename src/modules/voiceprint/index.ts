@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia'
 
 import { authService } from '@/modules/auth/service'
-import { buildErrorResponse } from '@/utils/common'
+import { handleUncaughtError } from '@/utils/common'
 
 import { voiceprintModel } from './model'
 import { Voiceprint, voiceprintService } from './service'
@@ -16,7 +16,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
       try {
         return await Voiceprint.recognize(userId, body.audio)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -36,7 +36,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
       try {
         return await Voiceprint.register(userId, body)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -55,7 +55,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
       try {
         return await Voiceprint.getPersons(userId)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -73,7 +73,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
       try {
         return await Voiceprint.deletePerson(userId, params.personId)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -91,7 +91,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
       try {
         return await Voiceprint.getPerson(userId, params.personId)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -110,7 +110,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
       try {
         return await Voiceprint.updatePerson(userId, params.personId, body)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -129,7 +129,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
       try {
         return await Voiceprint.addVoice(userId, params.personId, body.audio)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -148,7 +148,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
       try {
         return await Voiceprint.deleteVoice(userId, params.personId, params.voiceId)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {
@@ -166,7 +166,7 @@ export const voiceprintRoute = new Elysia({ prefix: '/api/v1/voiceprint', tags: 
       try {
         return await Voiceprint.updateVoice(userId, params.personId, params.voiceId, body.audio)
       } catch (e) {
-        return buildErrorResponse(500, (e as Error).message)
+        return handleUncaughtError(e, 500, 'Internal server error')
       }
     },
     {

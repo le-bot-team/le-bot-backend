@@ -7,9 +7,9 @@ import { buildErrorResponse, buildSuccessResponse } from '@/utils/common'
 import type { RegisterReqBody, UpdatePersonReqBody } from './model'
 import {
   deletePersonByUserAndId,
-  getPersonByUserAndId,
-  getPersonsByUserId,
-  insertPerson,
+  getPersonByUserIdAndIdNoExcept,
+  getPersonsByUserIdNoExcept,
+  insertPersonNoExcept,
   updatePerson,
 } from './repository'
 
@@ -20,7 +20,7 @@ export abstract class Voiceprint {
     if (!result.success) {
       return buildErrorResponse(400, result.message)
     }
-    const selectPerson = await getPersonByUserAndId(userId, result.data.person_id)
+    const selectPerson = await getPersonByUserIdAndIdNoExcept(userId, result.data.person_id)
     if (!selectPerson) {
       // Remove person from VPR since not found in DB for this user
       await vprApi.deletePerson(result.data.person_id)
@@ -43,7 +43,7 @@ export abstract class Voiceprint {
       return buildErrorResponse(400, result.message)
     }
 
-    const insertResult = await insertPerson({
+    const insertResult = await insertPersonNoExcept({
       id: result.data.person_id,
       userId: userId,
       name: data.name,
@@ -66,7 +66,7 @@ export abstract class Voiceprint {
     if (!result.success) {
       return buildErrorResponse(400, result.message)
     }
-    const selectPersonsResult = await getPersonsByUserId(userId)
+    const selectPersonsResult = await getPersonsByUserIdNoExcept(userId)
     return buildSuccessResponse(
       result.data
         .map((person) => {
@@ -92,7 +92,7 @@ export abstract class Voiceprint {
   }
 
   static async deletePerson(userId: string, personId: string) {
-    const person = await getPersonByUserAndId(userId, personId)
+    const person = await getPersonByUserIdAndIdNoExcept(userId, personId)
     if (!person) {
       return buildErrorResponse(404, 'Person not found')
     }
@@ -111,7 +111,7 @@ export abstract class Voiceprint {
     if (!result.success) {
       return buildErrorResponse(400, result.message)
     }
-    const selectPerson = await getPersonByUserAndId(userId, personId)
+    const selectPerson = await getPersonByUserIdAndIdNoExcept(userId, personId)
     if (!selectPerson) {
       // Remove person from VPR since not found in DB
       await vprApi.deletePerson(personId)

@@ -5,7 +5,11 @@ import nodemailer from 'nodemailer'
 import { log } from '@/log'
 import { buildErrorResponse, buildSuccessResponse } from '@/utils/common'
 
-import { createNewUserAndProfile, getUserByEmail, updatePasswordByEmail } from './repository'
+import {
+  createNewUserAndProfile,
+  getUserByEmailNoExcept,
+  updatePasswordByEmail,
+} from './repository'
 import {
   buildAccessTokenRedisKey,
   buildChallengeCodeRedisKey,
@@ -65,7 +69,7 @@ export abstract class Auth {
       return buildErrorResponse(400, 'Invalid code')
     }
 
-    const selectedUser = await getUserByEmail(email)
+    const selectedUser = await getUserByEmailNoExcept(email)
     if (!selectedUser) {
       const newUserId = await createNewUserAndProfile(email)
       const accessToken = Bun.randomUUIDv7()
@@ -87,7 +91,7 @@ export abstract class Auth {
   }
 
   static async loginWithPassword(email: string, password: string) {
-    const selectedUser = await getUserByEmail(email)
+    const selectedUser = await getUserByEmailNoExcept(email)
     if (!selectedUser || !selectedUser.passwordHash?.length) {
       return buildErrorResponse(401, 'Invalid email or password')
     }

@@ -1,10 +1,11 @@
 import { Elysia } from 'elysia'
 
 import { log } from '@/log'
+
 import { getUserIdByAccessToken } from '@/modules/auth/utils'
+import { getUserProfileByIdNoExcept } from '@/modules/profiles/repository'
 
 import type { WsRequest } from './model'
-import { getUserProfileById } from './repository'
 import { ApiWrapper } from './wrapper'
 
 export abstract class Chat {
@@ -19,7 +20,7 @@ export abstract class Chat {
       log.warn('Unauthorized WsClient connection attempt')
       return null
     }
-    const selectedUser = await getUserProfileById(userId)
+    const selectedUser = await getUserProfileByIdNoExcept(userId)
     if (!selectedUser) {
       log.warn({ userId }, 'User not found for WsClient')
       return null

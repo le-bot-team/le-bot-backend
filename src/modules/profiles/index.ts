@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia'
 
 import { authService } from '@/modules/auth/service'
-import { buildErrorResponse } from '@/utils/common'
+import { handleUncaughtError } from '@/utils/common'
 
 import { profileModel } from './model'
 import { Profiles, profileService } from './service'
@@ -16,7 +16,7 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profiles', tags: ['Pro
       try {
         return await Profiles.getAvatar(id ?? userId)
       } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+        return handleUncaughtError(error, 500, 'Internal server error')
       }
     },
     {
@@ -36,7 +36,7 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profiles', tags: ['Pro
       try {
         return await Profiles.getProfileInfo(id ?? userId)
       } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+        return handleUncaughtError(error, 500, 'Internal server error')
       }
     },
     {
@@ -56,7 +56,7 @@ export const profileRoute = new Elysia({ prefix: '/api/v1/profiles', tags: ['Pro
       try {
         return await Profiles.updateProfileInfo(userId, body)
       } catch (error) {
-        return buildErrorResponse(500, (error as Error).message)
+        return handleUncaughtError(error, 500, 'Internal server error')
       }
     },
     {
