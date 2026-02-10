@@ -44,11 +44,9 @@ const app = new Elysia()
       SMTP_PASSWORD: t.String({ description: 'SMTP server password' }),
       SMTP_USERNAME: t.String({ description: 'SMTP server username' }),
       TTL_ACCESS_TOKEN: t.Number({
-        default: 86400,
         description: 'Access token TTL in seconds (default 24 hours)',
       }),
       TTL_CHALLENGE_CODE: t.Number({
-        default: 300,
         description: 'Email challenge code TTL in seconds (default 5 minutes)',
       }),
       VPR_URL: t.String({ description: 'Voiceprint Recognition service URL' }),

@@ -31,11 +31,7 @@ const consumeEmailCode = async (email: string, code: string): Promise<boolean> =
 }
 
 const setAccessToken = async (token: string, userId: string): Promise<void> => {
-  await redis.send('SETEX', [
-    buildAccessTokenRedisKey(token),
-    String(Bun.env.TTL_ACCESS_TOKEN),
-    userId,
-  ])
+  await redis.setex(buildAccessTokenRedisKey(token), Bun.env.TTL_ACCESS_TOKEN, userId)
 }
 
 export abstract class Auth {
@@ -45,11 +41,7 @@ export abstract class Auth {
       .join('')
       .slice(0, 6)
       .toUpperCase()
-    await redis.send('SETEX', [
-      buildChallengeCodeRedisKey(email),
-      String(Bun.env.TTL_CHALLENGE_CODE),
-      code,
-    ])
+    await redis.setex(buildChallengeCodeRedisKey(email), Bun.env.TTL_CHALLENGE_CODE, code)
     try {
       await transport.sendMail({
         from: Bun.env.SMTP_FROM,
@@ -60,7 +52,7 @@ export abstract class Auth {
           code,
         ),
       })
-      return buildSuccessResponse(null)
+      return buildSuccessResponse()
     } catch (e) {
       log.error(e, 'Failed to send email')
       return buildErrorResponse(500, 'Failed to send email')
