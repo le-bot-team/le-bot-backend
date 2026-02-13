@@ -76,7 +76,7 @@ const personsRespBody = buildSuccessRespBody(
       person_id: t.String(),
       voice_count: t.Number(),
       is_temporal: t.Boolean(),
-      expire_date: t.Optional(t.String()),
+      expire_date: t.Nullable(t.String()),
       ...personDbFields,
     }),
   ),
@@ -86,7 +86,7 @@ const personRespBody = buildSuccessRespBody(
   t.Object({
     person_id: t.String(),
     is_temporal: t.Boolean(),
-    expire_date: t.Optional(t.String()),
+    expire_date: t.Nullable(t.String()),
     voices: t.Array(
       t.Object({
         voice_id: t.String(),

@@ -126,6 +126,7 @@ export class ChatApi {
             case 'end': {
               log.info(
                 {
+                  fullAnswer,
                   responseLength: response.data.metadata?.response_length,
                   engine: response.data.metadata?.engine,
                 },

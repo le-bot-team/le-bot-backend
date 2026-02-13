@@ -90,6 +90,7 @@ export class WakeApi {
           }
 
           if (this._resolveWake) {
+            log.debug({ fullAnswer }, '[WakeApi] Stream finished, resolving promise')
             this._resolveWake(fullAnswer)
             this._resolveWake = undefined
             this._rejectWake = undefined

@@ -19,7 +19,7 @@ const app = new Elysia()
   .use(log.into())
   .use(
     env({
-      APP_ID: t.String({ minLength: 1, description: 'App ID for the bot' }),
+      OPENSPEECH_APP_ID: t.String({ minLength: 1, description: 'Openspeech App ID' }),
       CHAT_API_URL: t.String({
         description: 'Chat AI backend URL (e.g. http://localhost:8000)',
       }),
@@ -30,7 +30,7 @@ const app = new Elysia()
       OPENSPEECH_ACCESS_TOKEN: t.String({
         minLength: 32,
         maxLength: 32,
-        description: 'Access token for the bot',
+        description: 'Openspeech Access token for authentication',
       }),
       REDIS_URL: t.String({
         default: 'redis://localhost:6379',

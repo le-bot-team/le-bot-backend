@@ -47,7 +47,7 @@ export class ApiWrapper {
     this._asrApi = new AsrApi(this._wsClient.id, this._userId, this._deviceId)
     this._chatApi = new ChatApi(this._userId, this._nickname)
     this._ttsApi = new TtsApi(this._wsClient.id, this._userId)
-    this._vprApi = new VprApi(this._userId, 0.6)
+    this._vprApi = new VprApi(this._userId)
     this._wakeApi = new WakeApi(this._userId, this._nickname)
 
     this._asrApi.onFinish = async (recognized) => {

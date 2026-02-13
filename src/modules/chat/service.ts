@@ -55,7 +55,10 @@ export abstract class Chat {
       case 'inputWakeAudio': {
         // Process wake audio through dedicated wake flow:
         // ASR -> VPR -> DB lookup -> Wake API -> TTS
-        log.info({ messageId: message.id }, '[WsAction] Input wake audio')
+        log.info(
+          { messageId: message.id, bufferLength: message.data.buffer.length },
+          '[WsAction] Input wake audio',
+        )
         await apiWrapper.inputWakeAudio(message.data.buffer)
         break
       }

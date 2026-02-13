@@ -45,11 +45,11 @@ export class AsrApi {
       let recognizedText = ''
       let isResolved = false
 
-      const ws = new WebSocket('wss://openspeech.bytedance.com/api/v3/sauc/bigmodel', {
+      const ws = new WebSocket('wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream', {
         headers: {
           'X-Api-Access-Key': Bun.env.OPENSPEECH_ACCESS_TOKEN,
-          'X-Api-App-Key': Bun.env.APP_ID,
-          'X-Api-Resource-Id': 'volc.bigasr.sauc.duration',
+          'X-Api-App-Key': Bun.env.OPENSPEECH_APP_ID,
+          'X-Api-Resource-Id': 'volc.seedasr.sauc.duration',
           'X-Api-Connect-Id': connectId,
         },
       })
@@ -223,11 +223,11 @@ export class AsrApi {
     }
 
     this._connectionPromise = new Promise<boolean>((resolve) => {
-      this._ws = new WebSocket('wss://openspeech.bytedance.com/api/v3/sauc/bigmodel', {
+      this._ws = new WebSocket('wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream', {
         headers: {
           'X-Api-Access-Key': Bun.env.OPENSPEECH_ACCESS_TOKEN,
-          'X-Api-App-Key': Bun.env.APP_ID,
-          'X-Api-Resource-Id': 'volc.bigasr.sauc.duration',
+          'X-Api-App-Key': Bun.env.OPENSPEECH_APP_ID,
+          'X-Api-Resource-Id': 'volc.seedasr.sauc.duration',
           'X-Api-Connect-Id': this._connectId,
         },
       })
@@ -323,7 +323,7 @@ export class TtsApi {
   private _finishSessionPromise?: Promise<boolean>
   private _onSessionFinished: (() => void) | undefined
 
-  private readonly _voiceType = 'zh_female_tianmeixiaoyuan_moon_bigtts'
+  private readonly _voiceType = 'zh_female_vv_uranus_bigtts'
   private _ws: WebSocket | undefined
 
   onAudioData: ((audioData: Uint8Array) => void) | undefined
@@ -472,8 +472,8 @@ export class TtsApi {
       this._ws = new WebSocket('wss://openspeech.bytedance.com/api/v3/tts/bidirection', {
         headers: {
           'X-Api-Access-Key': Bun.env.OPENSPEECH_ACCESS_TOKEN,
-          'X-Api-App-Key': Bun.env.APP_ID,
-          'X-Api-Resource-Id': 'volc.service_type.10029',
+          'X-Api-App-Key': Bun.env.OPENSPEECH_APP_ID,
+          'X-Api-Resource-Id': 'seed-tts-2.0',
           'X-Api-Connect-Id': this._connectId,
         },
       })
@@ -519,7 +519,7 @@ export class TtsApi {
           const message = parseResponseMessage(event.data.buffer)
 
           if (message.responseType === ResponseType.errorResponse) {
-            log.warn('[TtsApi] Error response received')
+            log.warn({ message }, '[TtsApi] Error response received')
             this.close()
             resolve(false)
             return
