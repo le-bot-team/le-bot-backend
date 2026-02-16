@@ -10,7 +10,7 @@ export const retrieveProfileInfoValidator = t.Object({
 export const updateProfileInfoValidator = t.Object({
   nickname: t.Optional(t.String({ maxLength: 32 })),
   bio: t.Optional(t.String({ maxLength: 512 })),
-  avatar: t.Optional(t.String({ format: 'uri' })),
+  avatar: t.Optional(t.String()),
   region: t.Optional(t.String({ maxLength: 16 })),
 })
 
