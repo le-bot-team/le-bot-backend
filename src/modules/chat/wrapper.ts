@@ -37,6 +37,7 @@ export class ApiWrapper {
   private _isReconnecting = false
   private _outputText = false
   private _timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  private _asrFinishResolver: (() => void) | undefined
 
   constructor(
     private readonly _wsClient: ElysiaWS,
@@ -51,6 +52,10 @@ export class ApiWrapper {
     this._wakeApi = new WakeApi(this._userId, this._nickname)
 
     this._asrApi.onFinish = async (recognized) => {
+      // Resolve the ASR finish promise to signal completion
+      this._asrFinishResolver?.()
+      this._asrFinishResolver = undefined
+
       if (this._outputText) {
         this._wsClient.send(
           new WsOutputTextCompleteResponseSuccess(
@@ -306,7 +311,18 @@ export class ApiWrapper {
           log.info({ ownerName }, '[ApiWrapper] Found owner name from DB')
         }
       } else {
-        log.info('[ApiWrapper] Voice not recognized for wake, proceeding without person_id')
+        log.info('[ApiWrapper] Voice not recognized for wake, registering new voice print')
+        const registerResult = await this._vprApi.register(buffer)
+        if (registerResult.success) {
+          personId = registerResult.data.person_id
+          log.info(
+            { personId: registerResult.data.person_id, voiceId: registerResult.data.voice_id },
+            '[ApiWrapper] Registered new voice print for wake',
+          )
+        } else {
+          log.error(`[VPR] Voice print registration failed during wake: ${registerResult.message}`)
+          return false
+        }
       }
 
       // Step 3: Ensure TTS connection is ready
@@ -447,6 +463,22 @@ export class ApiWrapper {
         if (!sendResult) {
           log.warn('[WsAction] Failed to send audio data to ASR API')
           break
+        }
+
+        // If this is the last audio packet, wait for ASR to finish and reset the connection
+        if (audioData.isComplete) {
+          // Create a promise that will be resolved when onFinish is called
+          const asrFinishPromise = new Promise<void>((resolve) => {
+            this._asrFinishResolver = resolve
+          })
+
+          // Wait for ASR to finish recognition with a timeout
+          const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 30000))
+          await Promise.race([asrFinishPromise, timeoutPromise])
+
+          // Reset the ASR WebSocket connection for the next recognition session
+          log.info('[ApiWrapper] Resetting ASR WebSocket connection')
+          await this._asrApi.reset()
         }
       }
     } catch (error) {
