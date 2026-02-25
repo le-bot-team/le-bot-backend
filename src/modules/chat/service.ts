@@ -68,7 +68,7 @@ export abstract class Chat {
       }
       case 'cancelOutput': {
         log.info({ messageId: message.id }, '[WsAction] Cancel output requested')
-        await apiWrapper.cancelOutput()
+        await apiWrapper.cancelOutput(message.id)
         break
       }
       default: {

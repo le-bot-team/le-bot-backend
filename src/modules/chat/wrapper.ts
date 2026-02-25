@@ -9,6 +9,7 @@ import { log } from '@/log'
 import type { WsUpdateConfigRequest } from './model'
 import { getPersonByUserAndId } from './repository'
 import {
+  WsCancelOutputResponseSuccess,
   WsChatCompleteResponseSuccess,
   WsOutputAudioCompleteResponseSuccess,
   WsOutputAudioStreamResponseSuccess,
@@ -227,7 +228,7 @@ export class ApiWrapper {
    * Cancel all ongoing output processing.
    * This aborts Chat API, Wake API, and TTS, then resets state for a new session.
    */
-  async cancelOutput(): Promise<void> {
+  async cancelOutput(messageId: string): Promise<void> {
     log.info('[ApiWrapper] Cancelling output - aborting all ongoing processes')
 
     // Set aborting flag to prevent new processing
@@ -274,6 +275,9 @@ export class ApiWrapper {
     this._isProcessingWakeAudio = false
     this._isReady = true
     this._isFirstAudio = true
+
+    // Send acknowledgment to client
+    this._wsClient.send(new WsCancelOutputResponseSuccess(messageId, 'manual'))
 
     log.info('[ApiWrapper] Cancel complete, ready for new session')
   }
