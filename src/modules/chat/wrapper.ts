@@ -223,6 +223,61 @@ export class ApiWrapper {
     this._isProcessingAudioQueue = false
   }
 
+  /**
+   * Cancel all ongoing output processing.
+   * This aborts Chat API, Wake API, and TTS, then resets state for a new session.
+   */
+  async cancelOutput(): Promise<void> {
+    log.info('[ApiWrapper] Cancelling output - aborting all ongoing processes')
+
+    // Set aborting flag to prevent new processing
+    this._isAborting = true
+
+    // Clear audio queue to prevent further processing
+    this._audioQueue = []
+    this._audioBufferForVpr = []
+
+    // Resolve any pending ASR finish promise to unblock _processAudioQueue
+    if (this._asrFinishResolver) {
+      this._asrFinishResolver()
+      this._asrFinishResolver = undefined
+    }
+
+    // Abort all ongoing API calls
+    this._chatApi.abort()
+    this._wakeApi.abort()
+    this._ttsApi.abort()
+
+    // Reset ASR connection
+    await this._asrApi.reset()
+
+    // Wait a bit for abort to take effect
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    // Reconnect TTS for the next session
+    try {
+      const ttsConnected = await this._ttsApi.connect()
+      if (ttsConnected) {
+        await this._ttsApi.startSession()
+        log.info('[ApiWrapper] TTS reconnected after cancel')
+      } else {
+        log.error('[ApiWrapper] Failed to reconnect TTS after cancel')
+      }
+    } catch (error) {
+      log.error(error, '[ApiWrapper] Error reconnecting TTS after cancel')
+    }
+
+    // Reset state flags
+    this._isAborting = false
+    this._isReconnecting = false
+    this._isProcessingAudioQueue = false
+    this._isProcessingWakeAudio = false
+    this._isReady = true
+    this._isFirstAudio = true
+
+    log.info('[ApiWrapper] Cancel complete, ready for new session')
+  }
+
   async updateConfig(request: WsUpdateConfigRequest): Promise<boolean> {
     if (request.data.conversationId) {
       this._conversationId = request.data.conversationId

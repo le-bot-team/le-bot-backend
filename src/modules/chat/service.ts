@@ -67,7 +67,8 @@ export abstract class Chat {
         break
       }
       case 'cancelOutput': {
-        // TODO: Implement output cancellation (abort ongoing Dify/TTS pipeline)
+        log.info({ messageId: message.id }, '[WsAction] Cancel output requested')
+        await apiWrapper.cancelOutput()
         break
       }
       default: {
