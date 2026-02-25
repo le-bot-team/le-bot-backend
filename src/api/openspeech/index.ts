@@ -205,6 +205,34 @@ export class AsrApi {
     this._sequenceNumber = 1
   }
 
+  /**
+   * Reset the WebSocket connection after ASR finishes recognition.
+   * Returns a promise that resolves when the connection is fully closed.
+   */
+  reset(): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this._ws) {
+        this._isReady = false
+        this._sequenceNumber = 1
+        this._utteranceNumber = 0
+        this._connectionPromise = undefined
+        resolve()
+        return
+      }
+
+      this._ws.onclose = () => {
+        this._isReady = false
+        this._sequenceNumber = 1
+        this._utteranceNumber = 0
+        this._connectionPromise = undefined
+        this._ws = undefined
+        resolve()
+      }
+
+      this._ws.close()
+    })
+  }
+
   get isConnected(): boolean {
     return !!(this._ws && this._isReady)
   }
