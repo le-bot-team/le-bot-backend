@@ -638,6 +638,10 @@ export class ApiWrapper {
     this._isAborting = true
     this._isReconnecting = true
     log.info('[WsAction] ASR finished during active session, interrupting')
+
+    // Notify client to stop playback immediately
+    this._wsClient.send(new WsCancelOutputResponseSuccess(this._wsClient.id, 'voice'))
+
     this._chatApi.abort()
 
     // Force-terminate TTS (no need to finishSession first since this is an interruption)
