@@ -69,12 +69,48 @@ export class ApiWrapper {
         )
       }
 
-      // Clear VPR audio buffer for the next recognition
-      this._audioBufferForVpr = []
-
       if (recognized.length < 2) {
         log.warn({ recognized }, '[WsAction] ASR text too short, ignored')
+        this._audioBufferForVpr = []
         return
+      }
+
+      // If previous response is still being processed/played, attempt voice-based interruption
+      if (!this._isReady) {
+        log.info(
+          { recognized },
+          '[ApiWrapper] New utterance during active session, verifying speaker for interrupt',
+        )
+
+        // Perform VPR to confirm same speaker (prevents echo from triggering false interrupts)
+        const recognizeResult = await this._handleVoicePrintRecognition()
+        this._audioBufferForVpr = []
+
+        if (recognizeResult?.success) {
+          if (recognizeResult.data.person_id === this._currentPersonId) {
+            log.info(
+              { personId: recognizeResult.data.person_id },
+              '[ApiWrapper] Same speaker confirmed, interrupting ongoing processes',
+            )
+            await this._interruptOngoingProcesses()
+          } else {
+            log.info(
+              {
+                detected: recognizeResult.data.person_id,
+                current: this._currentPersonId,
+              },
+              '[ApiWrapper] Different speaker during active session, ignoring',
+            )
+            return
+          }
+        } else {
+          // VPR failed - be conservative, don't interrupt (could be echo)
+          log.info('[ApiWrapper] VPR failed during active session, ignoring utterance')
+          return
+        }
+      } else {
+        // Normal new session - clear VPR buffer for next recognition
+        this._audioBufferForVpr = []
       }
 
       this._isReady = false
@@ -140,27 +176,26 @@ export class ApiWrapper {
         return
       }
 
-      const recognizeResult = await this._handleVoicePrintRecognition()
-      if (!recognizeResult) {
-        return
-      }
-      if (recognizeResult.success) {
-        log.info(
-          {
-            personId: recognizeResult.data.person_id,
-            confidence: recognizeResult.data.confidence,
-          },
-          `Voice recognized: '${recognizeResult.data.person_id}'`,
-        )
-        if (this._isReady && this._currentPersonId !== recognizeResult.data.person_id) {
-          this._currentPersonId = recognizeResult.data.person_id
-        } else if (this._currentPersonId === recognizeResult.data.person_id) {
-          // ongoing session and same speaker, interrupt and restart
-          await this._interruptOngoingProcesses()
+      // Only perform VPR for speaker identification when no active session is running.
+      // Interrupt detection is handled in onFinish instead.
+      if (this._isReady) {
+        const recognizeResult = await this._handleVoicePrintRecognition()
+        if (!recognizeResult) {
+          return
         }
-      } else {
-        log.info(`Vpr recognition failed: ${recognizeResult.message}`)
-        if (this._isReady) {
+        if (recognizeResult.success) {
+          log.info(
+            {
+              personId: recognizeResult.data.person_id,
+              confidence: recognizeResult.data.confidence,
+            },
+            `Voice recognized: '${recognizeResult.data.person_id}'`,
+          )
+          if (this._currentPersonId !== recognizeResult.data.person_id) {
+            this._currentPersonId = recognizeResult.data.person_id
+          }
+        } else {
+          log.info(`Vpr recognition failed: ${recognizeResult.message}`)
           // Register as unknown speaker only if no ongoing session
           const result = await this._handleVoicePrintRegistration()
           if (result?.success) {
@@ -488,8 +523,8 @@ export class ApiWrapper {
           continue
         }
 
-        // If this is the first audio packet and not connected, establish connections first
-        if (this._isFirstAudio && !this._isConnectionReady() && !this._isConnecting()) {
+        // If not connected, establish connections (handles initial connect and reconnect after ASR reset)
+        if (!this._isConnectionReady() && !this._isConnecting()) {
           await this._establishConnections()
         }
 
@@ -560,9 +595,45 @@ export class ApiWrapper {
       log.warn('[VPR] No audio data buffered for voice print processing')
       return null
     }
-    return Buffer.concat(this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64'))).toString(
-      'base64',
+
+    const WAV_HEADER_SIZE = 44
+
+    // Decode all base64 WAV chunks into raw buffers
+    const wavBuffers = this._audioBufferForVpr.map((str) => Buffer.from(str, 'base64'))
+
+    // Validate first chunk has at least a WAV header
+    const firstChunk = wavBuffers[0]
+    if (!firstChunk || firstChunk.length < WAV_HEADER_SIZE) {
+      log.warn('[VPR] First audio chunk too small to contain a valid WAV header')
+      return null
+    }
+
+    // Extract PCM data from each WAV chunk (skip the 44-byte standard header)
+    // Each chunk from the Go client is a complete WAV file with a standard 44-byte header
+    const pcmBuffers = wavBuffers.map((buf) => {
+      if (buf.length <= WAV_HEADER_SIZE) return Buffer.alloc(0)
+      return buf.subarray(WAV_HEADER_SIZE)
+    })
+
+    const combinedPcm = Buffer.concat(pcmBuffers)
+    if (combinedPcm.length === 0) {
+      log.warn('[VPR] Combined audio has no PCM data')
+      return null
+    }
+
+    // Build a single valid WAV file:
+    // Copy the first chunk's header as template (preserves sample rate, channels, bit depth)
+    // then update the size fields to reflect the combined data
+    const header = Buffer.alloc(WAV_HEADER_SIZE)
+    firstChunk.copy(header, 0, 0, WAV_HEADER_SIZE)
+    header.writeUInt32LE(combinedPcm.length + 36, 4)  // RIFF chunk size = data + 36
+    header.writeUInt32LE(combinedPcm.length, 40)       // data sub-chunk size
+
+    log.info(
+      `[VPR] Combined ${this._audioBufferForVpr.length} audio chunks: ${combinedPcm.length} bytes PCM (${(combinedPcm.length / 32000).toFixed(2)}s)`,
     )
+
+    return Buffer.concat([header, combinedPcm]).toString('base64')
   }
 
   private async _handleVoicePrintRecognition() {
@@ -634,6 +705,12 @@ export class ApiWrapper {
   }
 
   private async _interruptOngoingProcesses(): Promise<void> {
+    // Idempotency guard: prevent concurrent double-interrupts
+    if (this._isAborting) {
+      log.info('[WsAction] Interrupt already in progress, skipping')
+      return
+    }
+
     // Interrupt any ongoing DifyApi communication or TtsApi streaming
     this._isAborting = true
     this._isReconnecting = true
