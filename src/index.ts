@@ -19,12 +19,10 @@ const app = new Elysia()
   .use(log.into())
   .use(
     env({
-      OPENSPEECH_APP_ID: t.String({ minLength: 1, description: 'Openspeech App ID' }),
       CHAT_API_URL: t.String({
         description: 'Chat AI backend URL (e.g. http://localhost:8000)',
       }),
       DATABASE_URL: t.String({
-        default: 'postgresql://lebot:lebot@localhost:5432/lebot',
         description: 'Database connection URL',
       }),
       OPENSPEECH_ACCESS_TOKEN: t.String({
@@ -32,6 +30,7 @@ const app = new Elysia()
         maxLength: 32,
         description: 'Openspeech Access token for authentication',
       }),
+      OPENSPEECH_APP_ID: t.String({ minLength: 1, description: 'Openspeech App ID' }),
       REDIS_URL: t.String({
         default: 'redis://localhost:6379',
         description: 'Redis connection URL',
@@ -40,14 +39,19 @@ const app = new Elysia()
         description: 'Email address used in the From field when sending emails',
       }),
       SMTP_HOST: t.String({ description: 'SMTP server host' }),
-      SMTP_PORT: t.Number({ description: 'SMTP server port, usually 25' }),
       SMTP_PASSWORD: t.String({ description: 'SMTP server password' }),
+      SMTP_PORT: t.Number({ description: 'SMTP server port, usually 25' }),
       SMTP_USERNAME: t.String({ description: 'SMTP server username' }),
       TTL_ACCESS_TOKEN: t.Number({
         description: 'Access token TTL in seconds (default 24 hours)',
       }),
       TTL_CHALLENGE_CODE: t.Number({
         description: 'Email challenge code TTL in seconds (default 5 minutes)',
+      }),
+      VPR_THRESHOLD: t.Number({
+        minimum: 0,
+        maximum: 1,
+        description: 'Voiceprint recognition similarity threshold (0.0 ~ 1.0)',
       }),
       VPR_URL: t.String({ description: 'Voiceprint Recognition service URL' }),
     }),

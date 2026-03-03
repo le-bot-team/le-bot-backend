@@ -23,7 +23,7 @@ export class VprApi {
   private readonly _userId: string
   private _recognitionThreshold: number
 
-  constructor(userId: string, threshold = 0.3) {
+  constructor(userId: string, threshold = Number(Bun.env.VPR_THRESHOLD)) {
     this._userId = userId
     this._recognitionThreshold = threshold
   }
