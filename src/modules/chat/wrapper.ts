@@ -438,7 +438,11 @@ export class ApiWrapper {
         }
       }
 
-      // Step 3: Ensure TTS connection is ready
+      // Step 3: Ensure TTS has a fresh connection and session.
+      // The previous TTS session may have expired due to Volcengine server-side
+      // idle timeout (the device could have been sleeping for minutes).
+      // Abort any stale connection and create a fresh one.
+      this._ttsApi.abort()
       await this._ensureTtsConnection()
 
       // Step 4: Call wake API with the gathered information
