@@ -46,6 +46,6 @@ package-lock.json
 # repo/tooling
 /.git
 /.gitignore
-/bun.lock
+
 /.idea
 /.vscode
