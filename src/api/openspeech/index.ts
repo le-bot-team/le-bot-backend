@@ -250,6 +250,21 @@ export class AsrApi {
       return true
     }
 
+    // Clean up any stale connection before creating a new one.
+    // This handles cases where the previous connection received an error
+    // (e.g., idle timeout from Volcengine) which set _isReady=false but
+    // left _ws alive and _sequenceNumber at a stale value (e.g., 163).
+    if (this._ws) {
+      this._ws.onopen = null
+      this._ws.onclose = null
+      this._ws.onmessage = null
+      this._ws.close()
+      this._ws = undefined
+    }
+    this._isReady = false
+    this._sequenceNumber = 1
+    this._utteranceNumber = 0
+
     this._connectionPromise = new Promise<boolean>((resolve) => {
       this._ws = new WebSocket('wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream', {
         headers: {
