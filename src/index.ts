@@ -3,6 +3,7 @@ import { cors } from '@elysiajs/cors'
 import { fromTypes, openapi } from '@elysiajs/openapi'
 import { staticPlugin } from '@elysiajs/static'
 import { env } from '@yolk-oss/elysia-env'
+import { resolve } from 'node:path'
 
 import packageJson from 'package.json'
 import { log } from '@/log'
@@ -13,7 +14,8 @@ import { profileRoute } from '@/modules/profiles'
 import { voiceprintRoute } from '@/modules/voiceprint'
 import { handleUncaughtError } from '@/utils/common'
 
-const staticFilesPrefix = '/public'
+const staticAssetsDir = 'public'
+const indexHtmlPath = resolve(staticAssetsDir, 'index.html')
 
 const app = new Elysia()
   .use(log.into())
@@ -30,7 +32,10 @@ const app = new Elysia()
         maxLength: 32,
         description: 'Openspeech Access token for authentication',
       }),
-      OPENSPEECH_APP_ID: t.String({ minLength: 1, description: 'Openspeech App ID' }),
+      OPENSPEECH_APP_ID: t.String({
+        minLength: 1,
+        description: 'Openspeech App ID',
+      }),
       REDIS_URL: t.String({
         default: 'redis://localhost:6379',
         description: 'Redis connection URL',
@@ -66,13 +71,23 @@ const app = new Elysia()
             'This is the API documentation for the backend of Lebot, ' + 'a companion ai robot.',
         },
       },
-      exclude: {
-        paths: [`${staticFilesPrefix}/*`],
-      },
       references: fromTypes(Bun.env.NODE_ENV === 'production' ? 'dist/index.d.ts' : 'src/index.ts'),
     }),
   )
-  .use(staticPlugin({ prefix: staticFilesPrefix }))
+  .use(
+    staticPlugin({
+      prefix: '/',
+      // Exclude .html files so @elysiajs/static won't process them via
+      // Bun's HTML bundler (await import()), which breaks absolute asset
+      // paths in the built frontend output.
+      ignorePatterns: ['.DS_Store', '.git', '.env', '.html'],
+    }),
+  )
+  // Serve index.html as a raw file via Bun.file() to bypass Bun's HTML
+  // bundler. This is the root cause fix for path resolution errors when
+  // embedding the frontend build output in the backend.
+  .get('/index.html', () => new Response(Bun.file(indexHtmlPath)))
+  .get('/', () => new Response(Bun.file(indexHtmlPath)))
   .use(cors())
   .use(authRoute)
   .use(chatRoute)
