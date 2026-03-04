@@ -77,23 +77,28 @@ const app = new Elysia()
   .use(
     staticPlugin({
       prefix: '/',
-      // Exclude .html files so @elysiajs/static won't process them via
-      // Bun's HTML bundler (await import()), which breaks absolute asset
-      // paths in the built frontend output.
-      ignorePatterns: ['.DS_Store', '.git', '.env', '.html'],
+      // Use regex patterns instead of strings to work around an
+      // @elysiajs/static v1.4.7 bug: shouldIgnore() checks
+      // pattern.includes(file) instead of file.includes(pattern),
+      // so string patterns never match. Regex uses pattern.test(file)
+      // which works correctly.
+      // Exclude .html files to prevent Bun's HTML bundler
+      // (await import()) from breaking absolute asset paths in the
+      // built frontend output.
+      ignorePatterns: [/\.DS_Store/, /\.git/, /\.env/, /\.html$/],
     }),
   )
-  // Serve index.html as a raw file via Bun.file() to bypass Bun's HTML
-  // bundler. This is the root cause fix for path resolution errors when
-  // embedding the frontend build output in the backend.
-  .get('/index.html', () => new Response(Bun.file(indexHtmlPath)))
-  .get('/', () => new Response(Bun.file(indexHtmlPath)))
   .use(cors())
   .use(authRoute)
   .use(chatRoute)
   .use(deviceRoute)
   .use(profileRoute)
   .use(voiceprintRoute)
+  // Serve index.html as a raw file via Bun.file() to bypass Bun's HTML
+  // bundler. This is the root cause fix for path resolution errors when
+  // embedding the frontend build output in the backend.
+  .get('/index.html', () => new Response(Bun.file(indexHtmlPath)))
+  .get('/', () => new Response(Bun.file(indexHtmlPath)))
   .onError(({ error }) => {
     return handleUncaughtError(error, 500, 'Internal server error')
   })
