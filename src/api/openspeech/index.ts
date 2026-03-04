@@ -363,8 +363,6 @@ export class TtsApi {
   private _startSessionPromise?: Promise<boolean>
   private _sessionId?: string
   private _onSessionStarted: ((sessionId: string) => void) | undefined
-  private _finishSessionPromise?: Promise<boolean>
-  private _onSessionFinished: (() => void) | undefined
 
   private readonly _voiceType = 'zh_female_vv_uranus_bigtts'
   private _ws: WebSocket | undefined
@@ -404,43 +402,10 @@ export class TtsApi {
         this._sessionId = sessionId
         resolve(true)
         this._onSessionStarted = undefined
-        this._finishSessionPromise = undefined
       }
     })
 
     return this._startSessionPromise
-  }
-
-  async finishSession(): Promise<boolean> {
-    if (this._finishSessionPromise) {
-      return this._finishSessionPromise
-    }
-
-    this._finishSessionPromise = new Promise<boolean>((resolve) => {
-      if (!this._ws || !this._connectionId?.length || !this._sessionId?.length) {
-        resolve(true)
-        return
-      }
-
-      this._ws.send(
-        serializeRequestMessage(
-          MessageType.fullClientRequest,
-          MessageFlagType.withEvent,
-          SerializationType.json,
-          CompressionType.none,
-          TtsEventType.finishSession,
-          [this._sessionId, {}],
-        ),
-      )
-      this._onSessionFinished = () => {
-        this._sessionId = undefined
-        resolve(true)
-        this._onSessionFinished = undefined
-        this._startSessionPromise = undefined
-      }
-    })
-
-    return this._finishSessionPromise
   }
 
   sendText(text: string): boolean {
@@ -476,7 +441,6 @@ export class TtsApi {
     this._startSessionPromise = undefined
     this._sessionId = undefined
     this._onSessionStarted = undefined
-    this._onSessionFinished = undefined
 
     // Force-terminate the WebSocket connection
     if (this._ws) {
@@ -534,7 +498,6 @@ export class TtsApi {
         this._startSessionPromise = undefined
         this._sessionId = undefined
         this._onSessionStarted = undefined
-        this._onSessionFinished = undefined
 
         if (this._ws) {
           this._ws.onopen = null
@@ -587,7 +550,6 @@ export class TtsApi {
               break
 
             case TtsEventType.sessionFinished:
-              this._onSessionFinished?.()
               break
 
             case TtsEventType.ttsSentenceEnd:

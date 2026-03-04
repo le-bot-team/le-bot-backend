@@ -31,14 +31,11 @@ export class ApiWrapper {
   private _conversationId = ''
   private _currentPersonId = ''
   private _isAborting = false
-  private _isFirstAudio = true
   private _isProcessingAudioQueue = false
   private _isProcessingWakeAudio = false
   private _isReady = true
-  private _isReconnecting = false
   private _outputText = false
   private _timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  private _asrFinishResolver: (() => void) | undefined
 
   constructor(
     private readonly _wsClient: ElysiaWS,
@@ -53,9 +50,6 @@ export class ApiWrapper {
     this._wakeApi = new WakeApi(this._userId, this._nickname)
 
     this._asrApi.onFinish = async (recognized) => {
-      // Resolve the ASR finish promise to signal completion
-      this._asrFinishResolver?.()
-      this._asrFinishResolver = undefined
 
       if (this._outputText) {
         this._wsClient.send(
@@ -135,7 +129,8 @@ export class ApiWrapper {
           )
         }
 
-        // Send TTS text; reconnect if TTS connection was lost during chatMessage wait
+        // Connect TTS and send text — TTS is connected per-use, not preemptively
+        await this._ensureTtsConnection()
         let ttsSent = this._ttsApi.sendText(fullAnswer)
         if (!ttsSent) {
           log.warn('[ApiWrapper] TTS sendText failed, attempting to reconnect')
@@ -266,6 +261,8 @@ export class ApiWrapper {
           this._conversationId,
         ),
       )
+      // Close TTS connection after use — Volcengine TTS WebSockets are not reusable
+      this._ttsApi.abort()
       this._isReady = true
     }
   }
@@ -292,12 +289,6 @@ export class ApiWrapper {
     this._audioQueue = []
     this._audioBufferForVpr = []
 
-    // Resolve any pending ASR finish promise to unblock _processAudioQueue
-    if (this._asrFinishResolver) {
-      this._asrFinishResolver()
-      this._asrFinishResolver = undefined
-    }
-
     // Abort all ongoing API calls
     this._chatApi.abort()
     this._wakeApi.abort()
@@ -306,29 +297,11 @@ export class ApiWrapper {
     // Reset ASR connection
     await this._asrApi.reset()
 
-    // Wait a bit for abort to take effect
-    await new Promise((resolve) => setTimeout(resolve, 50))
-
-    // Reconnect TTS for the next session
-    try {
-      const ttsConnected = await this._ttsApi.connect()
-      if (ttsConnected) {
-        await this._ttsApi.startSession()
-        log.debug('[ApiWrapper] TTS reconnected after cancel')
-      } else {
-        log.error('[ApiWrapper] Failed to reconnect TTS after cancel')
-      }
-    } catch (error) {
-      log.error(error, '[ApiWrapper] Error reconnecting TTS after cancel')
-    }
-
     // Reset state flags
     this._isAborting = false
-    this._isReconnecting = false
     this._isProcessingAudioQueue = false
     this._isProcessingWakeAudio = false
     this._isReady = true
-    this._isFirstAudio = true
 
     // Send acknowledgment to client
     this._wsClient.send(new WsCancelOutputResponseSuccess(messageId, 'manual'))
@@ -389,6 +362,29 @@ export class ApiWrapper {
       return false
     }
 
+    // Reject empty or missing audio buffers early.
+    // The client should never send an empty buffer (it skips the send when the
+    // wake buffer is empty), but guard defensively to prevent ASR/VPR failures.
+    if (!buffer || buffer.length === 0) {
+      log.warn('[ApiWrapper] Empty wake audio buffer received, ignoring')
+      return false
+    }
+
+    // If a cancelOutput is in progress (e.g., client sent cancelOutput immediately
+    // before inputWakeAudio due to GPIO wake during an active session), wait for
+    // it to complete before proceeding. This prevents racing with abort logic.
+    if (this._isAborting) {
+      log.info('[ApiWrapper] Waiting for ongoing abort to complete before processing wake audio')
+      const start = Date.now()
+      while (this._isAborting && Date.now() - start < 5000) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+      if (this._isAborting) {
+        log.warn('[ApiWrapper] Abort still in progress after 5s, ignoring wake audio')
+        return false
+      }
+    }
+
     this._isProcessingWakeAudio = true
     this._isReady = false
 
@@ -438,15 +434,12 @@ export class ApiWrapper {
         }
       }
 
-      // Step 3: Ensure TTS connection is ready
-      await this._ensureTtsConnection()
-
-      // Step 4: Call wake API with the gathered information
+      // Step 3: Call wake API with the gathered information
       const wakeResponse = await this._wakeApi.wakeResponse(personId, asrResult)
 
       log.info({ responseLength: wakeResponse.length }, '[ApiWrapper] Wake API response received')
 
-      // Step 5: Send response text to TTS
+      // Step 4: Send response text to TTS
       if (wakeResponse.length > 0) {
         if (this._outputText) {
           this._wsClient.send(
@@ -469,7 +462,8 @@ export class ApiWrapper {
           )
         }
 
-        // Send TTS text; reconnect if TTS connection was lost
+        // Connect TTS and send text — TTS is connected per-use, not preemptively
+        await this._ensureTtsConnection()
         let ttsSent = this._ttsApi.sendText(wakeResponse)
         if (!ttsSent) {
           log.warn('[ApiWrapper] TTS sendText failed for wake response, attempting to reconnect')
@@ -573,17 +567,12 @@ export class ApiWrapper {
           await new Promise((resolve) => setTimeout(resolve, 10))
         }
 
-        // If connection failed and not reconnecting, clear the queue and exit
-        if (!this._isConnectionReady() && !this._isReconnecting) {
+        // If connection failed, clear the queue and exit
+        if (!this._isConnectionReady()) {
           this._audioQueue = []
           log.error('[ApiWrapper] API connections not ready, closing WebSocket')
           this._wsClient.close(1008, 'API connection failed')
           break
-        }
-
-        // If reconnecting, skip the current audio data and continue processing the queue
-        if (this._isReconnecting) {
-          continue
         }
 
         // Buffer audio data for VPR
@@ -599,18 +588,12 @@ export class ApiWrapper {
           break
         }
 
-        // If this is the last audio packet, wait for ASR to finish and reset the connection
+        // If this is the last audio packet, reset the ASR connection.
+        // By the time inputAudioComplete arrives (sent when the client's
+        // WAITING_RESPONSE times out after 30s of silence), the ASR has long
+        // since finished recognition and called onFinish. There is nothing
+        // left to wait for — just reset the connection for the next session.
         if (audioData.isComplete) {
-          // Create a promise that will be resolved when onFinish is called
-          const asrFinishPromise = new Promise<void>((resolve) => {
-            this._asrFinishResolver = resolve
-          })
-
-          // Wait for ASR to finish recognition with a timeout
-          const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 30000))
-          await Promise.race([asrFinishPromise, timeoutPromise])
-
-          // Reset the ASR WebSocket connection for the next recognition session
           log.debug('[ApiWrapper] Resetting ASR WebSocket connection')
           await this._asrApi.reset()
         }
@@ -623,11 +606,11 @@ export class ApiWrapper {
   }
 
   private _isConnectionReady(): boolean {
-    return this._asrApi.isConnected && this._ttsApi.isConnected
+    return this._asrApi.isConnected
   }
 
   private _isConnecting(): boolean {
-    return this._asrApi.isConnecting || this._ttsApi.isConnecting
+    return this._asrApi.isConnecting
   }
 
   private _getCombinedAudioBase64(): string | null {
@@ -712,46 +695,19 @@ export class ApiWrapper {
     }
 
     try {
-      log.debug('[WsAction] Establishing API connections')
+      log.debug('[WsAction] Establishing ASR connection')
 
-      // If ASR needs reconnecting but TTS still has a connection from a previous
-      // session, the TTS session may have expired due to Volcengine server-side
-      // idle timeout (e.g., the device was sleeping for minutes). Abort the stale
-      // TTS connection so a fresh one is created below. This is safe because
-      // _processAudioQueue() awaits this method, so it never observes TTS in a
-      // disconnected state mid-reconnection.
-      if (!this._asrApi.isConnected && this._ttsApi.isConnected) {
-        log.debug('[WsAction] Aborting stale TTS connection before reconnecting')
-        this._ttsApi.abort()
-      }
-
-      // Connect ASR and TTS first
-      const [asrConnected, ttsConnected] = await Promise.all([
-        this._asrApi.connect(),
-        this._ttsApi.connect(),
-      ])
+      const asrConnected = await this._asrApi.connect()
 
       if (!asrConnected) {
         log.error('[WsAction] Failed to connect to ASR API')
         return
       }
 
-      if (!ttsConnected) {
-        log.error('[WsAction] Failed to connect to TTS API')
-        return
-      }
-
-      // After TTS connection succeeds, start the session
-      const sessionStarted = await this._ttsApi.startSession()
-      if (!sessionStarted) {
-        log.error('[WsAction] Failed to start TTS session')
-        return
-      }
-
-      this._isFirstAudio = false
-      log.debug('[WsAction] API connections and TTS session established successfully')
+      // TTS is connected per-use via _ensureTtsConnection() when text is ready to send
+      log.debug('[WsAction] ASR connection established successfully')
     } catch (error) {
-      log.error(error, '[WsAction] Failed to establish API connections')
+      log.error(error, '[WsAction] Failed to establish ASR connection')
     }
   }
 
@@ -762,43 +718,16 @@ export class ApiWrapper {
       return
     }
 
-    // Interrupt any ongoing DifyApi communication or TtsApi streaming
     this._isAborting = true
-    this._isReconnecting = true
     log.debug('[WsAction] ASR finished during active session, interrupting')
 
     // Notify client to stop playback immediately
     this._wsClient.send(new WsCancelOutputResponseSuccess(this._wsClient.id, 'voice'))
 
+    // Abort ongoing Chat API and TTS — TTS will be reconnected per-use when next needed
     this._chatApi.abort()
-
-    // Force-terminate TTS (no need to finishSession first since this is an interruption)
     this._ttsApi.abort()
 
-    // Wait for TTS to fully close before reconnecting
-    await new Promise((resolve) => setTimeout(resolve, 100))
-
-    // Reconnect and start a new TTS session
-    try {
-      const ttsConnected = await this._ttsApi.connect()
-      if (ttsConnected) {
-        await this._ttsApi.startSession()
-        log.debug('[WsAction] TTS reconnected after interrupt')
-      } else {
-        log.error('[WsAction] Failed to reconnect TTS after interrupt')
-        this._wsClient.close(1011, 'TTS reconnection failed')
-        this._isAborting = false
-        this._isReconnecting = false
-        return
-      }
-    } catch (error) {
-      log.error(error, '[WsAction] Error reconnecting TTS after interrupt')
-      this._wsClient.close(1011, 'TTS reconnection error')
-      this._isAborting = false
-      this._isReconnecting = false
-      return
-    }
-    this._isReconnecting = false
     this._isAborting = false
   }
 }
