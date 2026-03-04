@@ -438,11 +438,7 @@ export class ApiWrapper {
         }
       }
 
-      // Step 3: Ensure TTS has a fresh connection and session.
-      // The previous TTS session may have expired due to Volcengine server-side
-      // idle timeout (the device could have been sleeping for minutes).
-      // Abort any stale connection and create a fresh one.
-      this._ttsApi.abort()
+      // Step 3: Ensure TTS connection is ready
       await this._ensureTtsConnection()
 
       // Step 4: Call wake API with the gathered information
@@ -717,6 +713,17 @@ export class ApiWrapper {
 
     try {
       log.debug('[WsAction] Establishing API connections')
+
+      // If ASR needs reconnecting but TTS still has a connection from a previous
+      // session, the TTS session may have expired due to Volcengine server-side
+      // idle timeout (e.g., the device was sleeping for minutes). Abort the stale
+      // TTS connection so a fresh one is created below. This is safe because
+      // _processAudioQueue() awaits this method, so it never observes TTS in a
+      // disconnected state mid-reconnection.
+      if (!this._asrApi.isConnected && this._ttsApi.isConnected) {
+        log.debug('[WsAction] Aborting stale TTS connection before reconnecting')
+        this._ttsApi.abort()
+      }
 
       // Connect ASR and TTS first
       const [asrConnected, ttsConnected] = await Promise.all([
