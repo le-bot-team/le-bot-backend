@@ -15,6 +15,6 @@ RUN bun run build
 # Expose the app port
 EXPOSE 3000
 
-# Run the compiled server
-CMD ["./server"]
+# Run migration then start the compiled server
+ENTRYPOINT ["sh", "entrypoint.sh"]
 
