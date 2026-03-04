@@ -36,10 +36,11 @@ const app = new Elysia()
         minLength: 1,
         description: 'Openspeech App ID',
       }),
-      REDIS_URL: t.String({
-        default: 'redis://localhost:6379',
-        description: 'Redis connection URL',
-      }),
+      REDIS_URL: t.Optional(
+        t.String({
+          description: 'Redis connection URL',
+        }),
+      ),
       SMTP_FROM: t.String({
         description: 'Email address used in the From field when sending emails',
       }),

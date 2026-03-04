@@ -11,12 +11,15 @@ services:
       - .env
     environment:
       DATABASE_URL: postgres://lebot:lebot@postgres:5432/lebot
+      REDIS_URL: redis://redis:6379
     ports:
       - '3000:3000'
     networks:
       - internal
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
   postgres:
     image: postgres:18
@@ -39,8 +42,8 @@ services:
   redis:
     image: redis:8
     restart: unless-stopped
-    ports:
-      - '6379:6379'
+    networks:
+      - internal
     healthcheck:
       test: ['CMD-SHELL', 'redis-cli ping | grep PONG']
       interval: 10s
