@@ -43,3 +43,5 @@ package-lock.json
 **/*.bun
 
 *.bat
+/public/
+!/public/.gitkeep
