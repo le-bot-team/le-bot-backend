@@ -135,9 +135,28 @@ export class ApiWrapper {
           )
         }
 
-        // Send TTS text without ending the session; keep the connection alive for reuse
-        this._ttsApi.sendText(fullAnswer)
-        // Note: no longer calling finishSession(); keep the session active
+        // Send TTS text; reconnect if TTS connection was lost during chatMessage wait
+        let ttsSent = this._ttsApi.sendText(fullAnswer)
+        if (!ttsSent) {
+          log.warn('[ApiWrapper] TTS sendText failed, attempting to reconnect')
+          const reconnected = await this._ensureTtsConnection()
+          if (reconnected) {
+            ttsSent = this._ttsApi.sendText(fullAnswer)
+          }
+        }
+        if (!ttsSent) {
+          log.error(
+            '[ApiWrapper] TTS sendText failed after reconnection attempt, sending fallback outputAudioComplete',
+          )
+          this._wsClient.send(
+            new WsOutputAudioCompleteResponseSuccess(
+              this._wsClient.id,
+              this._wsClient.id,
+              this._conversationId,
+            ),
+          )
+          this._isReady = true
+        }
 
         this._wsClient.send(
           new WsChatCompleteResponseSuccess(
@@ -450,7 +469,28 @@ export class ApiWrapper {
           )
         }
 
-        this._ttsApi.sendText(wakeResponse)
+        // Send TTS text; reconnect if TTS connection was lost
+        let ttsSent = this._ttsApi.sendText(wakeResponse)
+        if (!ttsSent) {
+          log.warn('[ApiWrapper] TTS sendText failed for wake response, attempting to reconnect')
+          const reconnected = await this._ensureTtsConnection()
+          if (reconnected) {
+            ttsSent = this._ttsApi.sendText(wakeResponse)
+          }
+        }
+        if (!ttsSent) {
+          log.error(
+            '[ApiWrapper] TTS sendText failed for wake response after reconnection, sending fallback outputAudioComplete',
+          )
+          this._wsClient.send(
+            new WsOutputAudioCompleteResponseSuccess(
+              this._wsClient.id,
+              this._wsClient.id,
+              this._conversationId,
+            ),
+          )
+          this._isReady = true
+        }
 
         this._wsClient.send(
           new WsChatCompleteResponseSuccess(
