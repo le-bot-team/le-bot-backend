@@ -35,7 +35,7 @@ export class WakeApi {
       const wakeApiUrl = Bun.env.CHAT_API_URL
       const url = `${wakeApiUrl}/api/wake/response`
 
-      log.info({ url, personId, message }, '[WakeApi] Sending wake request')
+      log.debug({ url, personId, message }, '[WakeApi] Sending wake request')
 
       const request: WakeRequest = {
         user_id: this._userId,
@@ -114,7 +114,7 @@ export class WakeApi {
   ): void {
     switch (response.type) {
       case 'start': {
-        log.info(
+        log.debug(
           {
             requestId: response.data.request_id,
             personId: response.data.metadata?.person_id,
@@ -133,7 +133,7 @@ export class WakeApi {
       }
 
       case 'complete': {
-        log.info(
+        log.debug(
           {
             status: response.data.metadata?.status,
             requiresInput: response.data.metadata?.requires_input,

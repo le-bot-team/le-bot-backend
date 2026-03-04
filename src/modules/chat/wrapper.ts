@@ -150,7 +150,7 @@ export class ApiWrapper {
         )
       } catch (error) {
         if ((error as Error).name === 'AbortError') {
-          log.info('[ApiWrapper] ChatApi chatMessage aborted')
+          log.debug('[ApiWrapper] ChatApi chatMessage aborted')
           return
         }
         log.error(error, '[ApiWrapper] Error during ASR finish handling')
@@ -184,7 +184,7 @@ export class ApiWrapper {
           return
         }
         if (recognizeResult.success) {
-          log.info(
+          log.debug(
             {
               personId: recognizeResult.data.person_id,
               confidence: recognizeResult.data.confidence,
@@ -195,17 +195,17 @@ export class ApiWrapper {
             this._currentPersonId = recognizeResult.data.person_id
           }
         } else {
-          log.info(`Vpr recognition failed: ${recognizeResult.message}`)
+          log.debug(`Vpr recognition failed: ${recognizeResult.message}`)
           // Register as unknown speaker only if no ongoing session
           const result = await this._handleVoicePrintRegistration()
           if (result?.success) {
-            log.info(
-              {
-                personId: result.data.person_id,
-                voiceId: result.data.voice_id,
-              },
-              'Registered new voice print for unknown speaker',
-            )
+          log.debug(
+            {
+              personId: result.data.person_id,
+              voiceId: result.data.voice_id,
+            },
+            'Registered new voice print for unknown speaker',
+          )
             this._currentPersonId = result.data.voice_id
           } else {
             log.error(`[VPR] Voice print registration failed: ${result?.message}`)
@@ -295,7 +295,7 @@ export class ApiWrapper {
       const ttsConnected = await this._ttsApi.connect()
       if (ttsConnected) {
         await this._ttsApi.startSession()
-        log.info('[ApiWrapper] TTS reconnected after cancel')
+        log.debug('[ApiWrapper] TTS reconnected after cancel')
       } else {
         log.error('[ApiWrapper] Failed to reconnect TTS after cancel')
       }
@@ -314,7 +314,7 @@ export class ApiWrapper {
     // Send acknowledgment to client
     this._wsClient.send(new WsCancelOutputResponseSuccess(messageId, 'manual'))
 
-    log.info('[ApiWrapper] Cancel complete, ready for new session')
+    log.debug('[ApiWrapper] Cancel complete, ready for new session')
   }
 
   async updateConfig(request: WsUpdateConfigRequest): Promise<boolean> {
@@ -374,7 +374,7 @@ export class ApiWrapper {
     this._isReady = false
 
     try {
-      log.info('[ApiWrapper] Processing wake audio')
+      log.debug('[ApiWrapper] Processing wake audio')
 
       // Step 1: Perform ASR and VPR in parallel
       const [asrResult, vprResult] = await Promise.all([
@@ -402,14 +402,14 @@ export class ApiWrapper {
         const person = await getPersonByUserAndId(this._userId, personId)
         if (person?.name) {
           ownerName = person.name
-          log.info({ ownerName }, '[ApiWrapper] Found owner name from DB')
+          log.debug({ ownerName }, '[ApiWrapper] Found owner name from DB')
         }
       } else {
-        log.info('[ApiWrapper] Voice not recognized for wake, registering new voice print')
+          log.debug('[ApiWrapper] Voice not recognized for wake, registering new voice print')
         const registerResult = await this._vprApi.register(buffer)
         if (registerResult.success) {
           personId = registerResult.data.person_id
-          log.info(
+          log.debug(
             { personId: registerResult.data.person_id, voiceId: registerResult.data.voice_id },
             '[ApiWrapper] Registered new voice print for wake',
           )
@@ -471,7 +471,7 @@ export class ApiWrapper {
       return true
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
-        log.info('[ApiWrapper] Wake audio processing aborted')
+        log.debug('[ApiWrapper] Wake audio processing aborted')
         return false
       }
       log.error(error, '[ApiWrapper] Error processing wake audio')
@@ -571,7 +571,7 @@ export class ApiWrapper {
           await Promise.race([asrFinishPromise, timeoutPromise])
 
           // Reset the ASR WebSocket connection for the next recognition session
-          log.info('[ApiWrapper] Resetting ASR WebSocket connection')
+          log.debug('[ApiWrapper] Resetting ASR WebSocket connection')
           await this._asrApi.reset()
         }
       }
@@ -629,7 +629,7 @@ export class ApiWrapper {
     header.writeUInt32LE(combinedPcm.length + 36, 4)  // RIFF chunk size = data + 36
     header.writeUInt32LE(combinedPcm.length, 40)       // data sub-chunk size
 
-    log.info(
+    log.debug(
       `[VPR] Combined ${this._audioBufferForVpr.length} audio chunks: ${combinedPcm.length} bytes PCM (${(combinedPcm.length / 32000).toFixed(2)}s)`,
     )
 
@@ -643,7 +643,7 @@ export class ApiWrapper {
     }
 
     try {
-      log.info('[VPR] Starting voice recognition...')
+      log.debug('[VPR] Starting voice recognition...')
       return await this._vprApi.recognize(combinedAudioBase64)
     } catch (error) {
       log.error(`Error during voice print recognition: ${error}`)
@@ -672,7 +672,7 @@ export class ApiWrapper {
     }
 
     try {
-      log.info('[WsAction] Establishing API connections')
+      log.debug('[WsAction] Establishing API connections')
 
       // Connect ASR and TTS first
       const [asrConnected, ttsConnected] = await Promise.all([
@@ -698,7 +698,7 @@ export class ApiWrapper {
       }
 
       this._isFirstAudio = false
-      log.info('[WsAction] API connections and TTS session established successfully')
+      log.debug('[WsAction] API connections and TTS session established successfully')
     } catch (error) {
       log.error(error, '[WsAction] Failed to establish API connections')
     }
@@ -707,14 +707,14 @@ export class ApiWrapper {
   private async _interruptOngoingProcesses(): Promise<void> {
     // Idempotency guard: prevent concurrent double-interrupts
     if (this._isAborting) {
-      log.info('[WsAction] Interrupt already in progress, skipping')
+      log.debug('[WsAction] Interrupt already in progress, skipping')
       return
     }
 
     // Interrupt any ongoing DifyApi communication or TtsApi streaming
     this._isAborting = true
     this._isReconnecting = true
-    log.info('[WsAction] ASR finished during active session, interrupting')
+    log.debug('[WsAction] ASR finished during active session, interrupting')
 
     // Notify client to stop playback immediately
     this._wsClient.send(new WsCancelOutputResponseSuccess(this._wsClient.id, 'voice'))
@@ -732,7 +732,7 @@ export class ApiWrapper {
       const ttsConnected = await this._ttsApi.connect()
       if (ttsConnected) {
         await this._ttsApi.startSession()
-        log.info('[WsAction] TTS reconnected after interrupt')
+        log.debug('[WsAction] TTS reconnected after interrupt')
       } else {
         log.error('[WsAction] Failed to reconnect TTS after interrupt')
         this._wsClient.close(1011, 'TTS reconnection failed')

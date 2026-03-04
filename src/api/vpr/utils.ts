@@ -28,7 +28,7 @@ export const getUsers = async (): Promise<VprGetUsersResponse> => {
       method: 'GET',
     })
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to get users: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to get users (${response.statusText}): ${await response.text()}`,
@@ -55,7 +55,7 @@ export const deleteUser = async (userId: string): Promise<VprDeleteUserResponse>
       method: 'DELETE',
     })
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to delete user: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to delete user (${response.statusText}): ${await response.text()}`,
@@ -88,7 +88,7 @@ export const recognize = async (
       body: JSON.stringify(payload),
     })
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to recognize voice: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to recognize voice (${response.statusText}): ${await response.text()}`,
@@ -121,7 +121,7 @@ export const register = async (
       body: JSON.stringify(payload),
     })
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to register voice: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to register voice (${response.statusText}): ${await response.text()}`,
@@ -148,7 +148,7 @@ export const getPersons = async (userId: string): Promise<VprGetUserPersons> => 
       method: 'GET',
     })
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to get user persons: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to get user persons (${response.statusText}): ${await response.text()}`,
@@ -182,7 +182,7 @@ export const deletePerson = async (
       },
     )
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to delete person: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to delete person (${response.statusText}): ${await response.text()}`,
@@ -213,7 +213,7 @@ export const getPerson = async (userId: string, personId: string): Promise<VprGe
       },
     )
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to get user person: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to get user person (${response.statusText}): ${await response.text()}`,
@@ -251,7 +251,7 @@ export const updatePerson = async (
       },
     )
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to update person: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to update person (${response.statusText}): ${await response.text()}`,
@@ -287,7 +287,7 @@ export const deleteVoice = async (
       },
     )
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to delete voice: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to delete voice (${response.statusText}): ${await response.text()}`,
@@ -319,7 +319,7 @@ export const addVoice = async (
       },
     )
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to add voice: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to add voice (${response.statusText}): ${await response.text()}`,
@@ -359,7 +359,7 @@ export const updateVoice = async (
       },
     )
     if (!response.ok) {
-      console.error(response)
+      log.error({ status: response.status }, `Failed to update voice: ${response.statusText}`)
       return {
         success: false,
         message: `Failed to update voice (${response.statusText}): ${await response.text()}`,

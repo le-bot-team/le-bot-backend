@@ -44,7 +44,7 @@ export class VprApi {
       return
     }
     this._recognitionThreshold = value
-    log.info(`Threshold updated to ${value}`)
+    log.debug(`Threshold updated to ${value}`)
   }
 
   async deleteUser(): Promise<VprDeleteUserResponse> {
@@ -67,7 +67,7 @@ export class VprApi {
     })
 
     if (result.success) {
-      log.info(
+      log.debug(
         {
           confidence: result.data.confidence.toFixed(2),
           similarity: result.data.similarity.toFixed(2),

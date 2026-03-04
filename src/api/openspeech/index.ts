@@ -151,7 +151,7 @@ export class AsrApi {
               const lastUtterance = result.utterances[result.utterances.length - 1]
               if (lastUtterance?.definite) {
                 recognizedText = lastUtterance.text ?? ''
-                log.info(
+                log.debug(
                   { text: recognizedText },
                   '[AsrApi.recognizeOnce] Final utterance recognized',
                 )
@@ -323,7 +323,7 @@ export class AsrApi {
               if (currentUtterance.definite) {
                 this.onFinish?.(currentUtterance.text)
                 this._utteranceNumber++
-                log.info({ text: currentUtterance.text }, '[AsrApi] Utterance recognized')
+                log.debug({ text: currentUtterance.text }, '[AsrApi] Utterance recognized')
               } else {
                 this.onUpdate?.(currentUtterance.text)
               }
@@ -454,7 +454,7 @@ export class TtsApi {
   }
 
   abort(): void {
-    log.info('[TtsApi] Aborting TTS session')
+    log.debug('[TtsApi] Aborting TTS session')
     // Clear state immediately
     this._connectionPromise = undefined
     this._connectionId = undefined
@@ -513,7 +513,7 @@ export class TtsApi {
       }
 
       this._ws.onclose = () => {
-        log.info('[TtsApi] WebSocket closed')
+        log.debug('[TtsApi] WebSocket closed')
         this._connectionPromise = undefined
         this._connectionId = undefined
         this._startSessionPromise = undefined

@@ -52,7 +52,7 @@ export class ChatApi {
       const chatApiUrl = Bun.env.CHAT_API_URL?.replace(/^http/, 'ws')
       const wsUrl = `${chatApiUrl}/api/chat/chat/${personId || 'default'}`
 
-      log.info({ wsUrl, personId }, '[ChatApi] Connecting to chat WebSocket')
+      log.debug({ wsUrl, personId }, '[ChatApi] Connecting to chat WebSocket')
 
       this._ws = new WebSocket(wsUrl)
 
@@ -88,7 +88,7 @@ export class ChatApi {
           owner_name: this._nickname,
         }
 
-        log.info(
+        log.debug(
           { userId: this._userId, personId, hasSession: !!conversationId },
           '[ChatApi] Sending chat message',
         )
@@ -106,7 +106,7 @@ export class ChatApi {
           switch (response.type) {
             case 'start': {
               const requestId = response.data.request_id
-              log.info(
+              log.debug(
                 { requestId, intent: response.data.metadata?.intent },
                 '[ChatApi] Stream started',
               )

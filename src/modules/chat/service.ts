@@ -48,7 +48,7 @@ export abstract class Chat {
         break
       }
       case 'inputAudioComplete': {
-        log.info({ messageId: message.id }, '[WsAction] Input audio complete')
+        log.debug({ messageId: message.id }, '[WsAction] Input audio complete')
         apiWrapper.inputAudioComplete(message.data.buffer)
         break
       }
