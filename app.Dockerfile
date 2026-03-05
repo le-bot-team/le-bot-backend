@@ -16,5 +16,5 @@ RUN bun run build
 EXPOSE 3000
 
 # Run migration then start the compiled server
-ENTRYPOINT ["sh", "entrypoint.sh"]
+CMD ["sh", "-c", "bun --bun drizzle-kit push --config ./drizzle.config.ts && exec ./server"]
 
