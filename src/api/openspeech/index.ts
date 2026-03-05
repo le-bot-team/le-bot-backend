@@ -550,6 +550,11 @@ export class TtsApi {
               break
 
             case TtsEventType.sessionFinished:
+              // Session finished is the final event — if onFinish hasn't been
+              // triggered by ttsSentenceEnd yet, fire it now as a safety net.
+              // Some TTS responses may send sessionFinished without a preceding
+              // ttsSentenceEnd, which would otherwise leave the caller hanging.
+              this.onFinish?.()
               break
 
             case TtsEventType.ttsSentenceEnd:

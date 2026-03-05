@@ -388,6 +388,9 @@ export class ApiWrapper {
     this._isProcessingWakeAudio = true
     this._isReady = false
 
+    // Track whether TTS onFinish callback will restore _isReady
+    let waitingForTtsCompletion = false
+
     try {
       log.debug('[ApiWrapper] Processing wake audio')
 
@@ -483,7 +486,9 @@ export class ApiWrapper {
               this._conversationId,
             ),
           )
-          this._isReady = true
+        } else {
+          // TTS sendText succeeded — _isReady will be restored by _ttsApi.onFinish callback
+          waitingForTtsCompletion = true
         }
 
         this._wsClient.send(
@@ -512,6 +517,11 @@ export class ApiWrapper {
       return false
     } finally {
       this._isProcessingWakeAudio = false
+      // Restore _isReady if TTS was not successfully sent
+      // (when TTS is sent, _ttsApi.onFinish callback will restore _isReady)
+      if (!waitingForTtsCompletion) {
+        this._isReady = true
+      }
     }
   }
 
