@@ -50,7 +50,6 @@ export class ApiWrapper {
     this._wakeApi = new WakeApi(this._userId, this._nickname)
 
     this._asrApi.onFinish = async (recognized) => {
-
       if (this._outputText) {
         this._wsClient.send(
           new WsOutputTextCompleteResponseSuccess(
@@ -72,7 +71,10 @@ export class ApiWrapper {
       // If previous response is still being processed/played, attempt voice-based interruption
       if (!this._isReady) {
         log.info(
-          { recognized },
+          {
+            recognized,
+            ttsConnected: this._ttsApi.isConnected,
+          },
           '[ApiWrapper] New utterance during active session, verifying speaker for interrupt',
         )
 
@@ -213,13 +215,13 @@ export class ApiWrapper {
           // Register as unknown speaker only if no ongoing session
           const result = await this._handleVoicePrintRegistration()
           if (result?.success) {
-          log.debug(
-            {
-              personId: result.data.person_id,
-              voiceId: result.data.voice_id,
-            },
-            'Registered new voice print for unknown speaker',
-          )
+            log.debug(
+              {
+                personId: result.data.person_id,
+                voiceId: result.data.voice_id,
+              },
+              'Registered new voice print for unknown speaker',
+            )
             this._currentPersonId = result.data.voice_id
           } else {
             log.error(`[VPR] Voice print registration failed: ${result?.message}`)
@@ -254,6 +256,11 @@ export class ApiWrapper {
       )
     }
     this._ttsApi.onFinish = () => {
+      // Guard against redundant calls (e.g., safety-net from TTS onclose after
+      // normal completion, or after cancelOutput already reset state)
+      if (this._isReady) {
+        return
+      }
       this._wsClient.send(
         new WsOutputAudioCompleteResponseSuccess(
           this._wsClient.id,
@@ -437,7 +444,7 @@ export class ApiWrapper {
           log.debug({ ownerName }, '[ApiWrapper] Found owner name from DB')
         }
       } else {
-          log.debug('[ApiWrapper] Voice not recognized for wake, registering new voice print')
+        log.debug('[ApiWrapper] Voice not recognized for wake, registering new voice print')
         const registerResult = await this._vprApi.register(buffer)
         if (registerResult.success) {
           personId = registerResult.data.person_id
@@ -586,7 +593,6 @@ export class ApiWrapper {
         // connection to the same Volcengine endpoint, and opening a second
         // concurrent connection may cause one of them to be closed.
         if (this._isProcessingWakeAudio) {
-          log.debug('[ApiWrapper] Skipping audio queue processing during wake audio handling')
           this._audioQueue = []
           break
         }
@@ -683,8 +689,8 @@ export class ApiWrapper {
     // then update the size fields to reflect the combined data
     const header = Buffer.alloc(WAV_HEADER_SIZE)
     firstChunk.copy(header, 0, 0, WAV_HEADER_SIZE)
-    header.writeUInt32LE(combinedPcm.length + 36, 4)  // RIFF chunk size = data + 36
-    header.writeUInt32LE(combinedPcm.length, 40)       // data sub-chunk size
+    header.writeUInt32LE(combinedPcm.length + 36, 4) // RIFF chunk size = data + 36
+    header.writeUInt32LE(combinedPcm.length, 40) // data sub-chunk size
 
     log.debug(
       `[VPR] Combined ${this._audioBufferForVpr.length} audio chunks: ${combinedPcm.length} bytes PCM (${(combinedPcm.length / 32000).toFixed(2)}s)`,

@@ -493,6 +493,15 @@ export class TtsApi {
 
       this._ws.onclose = () => {
         log.debug('[TtsApi] WebSocket closed')
+        // Check if there was an active session before clearing state.
+        // If so, onFinish may not have been called (e.g., Volcengine closed the
+        // connection after streaming all audio but before sending ttsSentenceEnd
+        // or sessionFinished). Fire onFinish as a safety net to prevent the
+        // wrapper's _isReady flag from being stuck at false.
+        // Note: abort() nulls onclose before terminating, so this only fires
+        // when the WebSocket closes on its own (the exact scenario we need).
+        const hadActiveSession = !!this._sessionId
+
         this._connectionPromise = undefined
         this._connectionId = undefined
         this._startSessionPromise = undefined
@@ -504,6 +513,13 @@ export class TtsApi {
           this._ws.onclose = null
           this._ws.onmessage = null
           this._ws = undefined
+        }
+
+        if (hadActiveSession) {
+          log.warn(
+            '[TtsApi] Session was active when connection closed, firing onFinish as safety net',
+          )
+          this.onFinish?.()
         }
       }
 
