@@ -31,6 +31,8 @@ services:
       POSTGRES_INITDB_ARGS: '--data-checksums'
     networks:
       - internal
+    ports:
+        - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:
