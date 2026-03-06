@@ -278,9 +278,17 @@ export class ApiWrapper {
   /**
    * Cancel all ongoing output processing.
    * This aborts Chat API, Wake API, and TTS, then resets state for a new session.
+   *
+   * IMPORTANT: This method must NOT tear down resources that a concurrent
+   * `inputWakeAudio` call is using.  `inputWakeAudio` uses the static
+   * `AsrApi.recognizeOnce()` (its own temporary WebSocket) rather than the
+   * instance-level streaming ASR, but both go through the same Volcengine
+   * endpoint which may enforce per-user connection limits.  If a wake is in
+   * progress we therefore skip the streaming ASR reset to avoid collateral
+   * damage.
    */
   async cancelOutput(messageId: string): Promise<void> {
-    log.info('[ApiWrapper] Cancelling output - aborting all ongoing processes')
+    log.info({ messageId }, '[ApiWrapper] Cancelling output')
 
     // Set aborting flag to prevent new processing
     this._isAborting = true
@@ -294,13 +302,19 @@ export class ApiWrapper {
     this._wakeApi.abort()
     this._ttsApi.abort()
 
-    // Reset ASR connection
-    await this._asrApi.reset()
+    // Only reset the streaming ASR connection when no wake audio is being
+    // processed.  `inputWakeAudio` creates its own one-shot ASR connection
+    // via `AsrApi.recognizeOnce()`, and resetting the streaming ASR instance
+    // here used to race with that one-shot connection on the Volcengine
+    // endpoint (which closes one of them, causing "ASR connection closed
+    // without result").
+    if (!this._isProcessingWakeAudio) {
+      await this._asrApi.reset()
+    }
 
     // Reset state flags
     this._isAborting = false
     this._isProcessingAudioQueue = false
-    this._isProcessingWakeAudio = false
     this._isReady = true
 
     // Send acknowledgment to client
@@ -565,6 +579,16 @@ export class ApiWrapper {
         const audioData = this._audioQueue.shift()
         if (!audioData) {
           continue
+        }
+
+        // Do not establish a streaming ASR connection while wake audio is
+        // being processed — `recognizeOnce` uses a separate one-shot
+        // connection to the same Volcengine endpoint, and opening a second
+        // concurrent connection may cause one of them to be closed.
+        if (this._isProcessingWakeAudio) {
+          log.debug('[ApiWrapper] Skipping audio queue processing during wake audio handling')
+          this._audioQueue = []
+          break
         }
 
         // If not connected, establish connections (handles initial connect and reconnect after ASR reset)

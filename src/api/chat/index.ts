@@ -50,6 +50,10 @@ export class ChatApi {
       this._rejectChat = reject
 
       const chatApiUrl = Bun.env.CHAT_API_URL?.replace(/^http/, 'ws')
+      if (!chatApiUrl) {
+        reject(new Error('CHAT_API_URL is not configured'))
+        return
+      }
       const wsUrl = `${chatApiUrl}/api/chat/chat/${personId || 'default'}`
 
       log.debug({ wsUrl, personId }, '[ChatApi] Connecting to chat WebSocket')

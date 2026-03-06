@@ -33,6 +33,10 @@ export class WakeApi {
       this._rejectWake = reject
 
       const wakeApiUrl = Bun.env.CHAT_API_URL
+      if (!wakeApiUrl) {
+        reject(new Error('CHAT_API_URL is not configured'))
+        return
+      }
       const url = `${wakeApiUrl}/api/wake/response`
 
       log.debug({ url, personId, message }, '[WakeApi] Sending wake request')
