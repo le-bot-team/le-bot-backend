@@ -30,6 +30,7 @@ export class ApiWrapper {
   private _audioBufferForVpr: string[] = []
   private _conversationId = ''
   private _currentPersonId = ''
+  private _hasInterruptedThisRound = false
   private _isAborting = false
   private _isProcessingAudioQueue = false
   private _isProcessingWakeAudio = false
@@ -68,46 +69,19 @@ export class ApiWrapper {
         return
       }
 
-      // If previous response is still being processed/played, attempt voice-based interruption
+      // If previous response is still being processed/played, ignore this utterance.
+      // Interrupt detection is now handled in onUpdate instead.
       if (!this._isReady) {
         log.info(
-          {
-            recognized,
-            ttsConnected: this._ttsApi.isConnected,
-          },
-          '[ApiWrapper] New utterance during active session, verifying speaker for interrupt',
+          { recognized },
+          '[ApiWrapper] Utterance received while busy, ignoring (interrupt handled in onUpdate)',
         )
-
-        // Perform VPR to confirm same speaker (prevents echo from triggering false interrupts)
-        const recognizeResult = await this._handleVoicePrintRecognition()
         this._audioBufferForVpr = []
-
-        if (recognizeResult?.success) {
-          if (recognizeResult.data.person_id === this._currentPersonId) {
-            log.info(
-              { personId: recognizeResult.data.person_id },
-              '[ApiWrapper] Same speaker confirmed, interrupting ongoing processes',
-            )
-            await this._interruptOngoingProcesses()
-          } else {
-            log.info(
-              {
-                detected: recognizeResult.data.person_id,
-                current: this._currentPersonId,
-              },
-              '[ApiWrapper] Different speaker during active session, ignoring',
-            )
-            return
-          }
-        } else {
-          // VPR failed - be conservative, don't interrupt (could be echo)
-          log.info('[ApiWrapper] VPR failed during active session, ignoring utterance')
-          return
-        }
-      } else {
-        // Normal new session - clear VPR buffer for next recognition
-        this._audioBufferForVpr = []
+        return
       }
+
+      // Normal new session - clear VPR buffer for next recognition
+      this._audioBufferForVpr = []
 
       this._isReady = false
 
@@ -151,8 +125,9 @@ export class ApiWrapper {
               this._wsClient.id,
               this._conversationId,
             ),
-          )
+           )
           this._isReady = true
+          this._hasInterruptedThisRound = false
         }
 
         this._wsClient.send(
@@ -172,6 +147,7 @@ export class ApiWrapper {
         log.error(error, '[ApiWrapper] Error during ASR finish handling')
         this._wsClient.close(1011, 'Internal server error')
         this._isReady = true
+        this._hasInterruptedThisRound = false
         return
       }
     }
@@ -192,9 +168,8 @@ export class ApiWrapper {
         return
       }
 
-      // Only perform VPR for speaker identification when no active session is running.
-      // Interrupt detection is handled in onFinish instead.
       if (this._isReady) {
+        // System is idle - perform VPR for speaker identification (new conversation user detection)
         const recognizeResult = await this._handleVoicePrintRecognition()
         if (!recognizeResult) {
           return
@@ -226,6 +201,40 @@ export class ApiWrapper {
           } else {
             log.error(`[VPR] Voice print registration failed: ${result?.message}`)
           }
+        }
+      } else if (!this._hasInterruptedThisRound) {
+        // System is busy - perform VPR for interrupt detection (only once per round)
+        log.info(
+          {
+            text,
+            ttsConnected: this._ttsApi.isConnected,
+          },
+          '[ApiWrapper] Utterance during active session, verifying speaker for interrupt',
+        )
+
+        const recognizeResult = await this._handleVoicePrintRecognition()
+        this._audioBufferForVpr = []
+        this._hasInterruptedThisRound = true
+
+        if (recognizeResult?.success) {
+          if (recognizeResult.data.person_id === this._currentPersonId) {
+            log.info(
+              { personId: recognizeResult.data.person_id },
+              '[ApiWrapper] Same speaker confirmed, interrupting ongoing processes',
+            )
+            await this._interruptOngoingProcesses()
+          } else {
+            log.info(
+              {
+                detected: recognizeResult.data.person_id,
+                current: this._currentPersonId,
+              },
+              '[ApiWrapper] Different speaker during active session, ignoring',
+            )
+          }
+        } else {
+          // VPR failed - be conservative, don't interrupt (could be echo)
+          log.info('[ApiWrapper] VPR failed during active session, ignoring utterance')
         }
       }
     }
@@ -271,6 +280,7 @@ export class ApiWrapper {
       // Close TTS connection after use — Volcengine TTS WebSockets are not reusable
       this._ttsApi.abort()
       this._isReady = true
+      this._hasInterruptedThisRound = false
     }
   }
 
@@ -323,6 +333,7 @@ export class ApiWrapper {
     this._isAborting = false
     this._isProcessingAudioQueue = false
     this._isReady = true
+    this._hasInterruptedThisRound = false
 
     // Send acknowledgment to client
     this._wsClient.send(new WsCancelOutputResponseSuccess(messageId, 'manual'))
@@ -542,6 +553,7 @@ export class ApiWrapper {
       // (when TTS is sent, _ttsApi.onFinish callback will restore _isReady)
       if (!waitingForTtsCompletion) {
         this._isReady = true
+        this._hasInterruptedThisRound = false
       }
     }
   }
