@@ -14,8 +14,8 @@ import { profileRoute } from '@/modules/profiles'
 import { voiceprintRoute } from '@/modules/voiceprint'
 import { handleUncaughtError } from '@/utils/common'
 
-const staticAssetsDir = 'public'
-const indexHtmlPath = resolve(staticAssetsDir, 'index.html')
+const staticFilesPrefix = '/public'
+const indexHtmlPath = resolve('public', 'index.html')
 
 const app = new Elysia()
   .use(log.into())
@@ -73,11 +73,14 @@ const app = new Elysia()
         },
       },
       references: fromTypes(Bun.env.NODE_ENV === 'production' ? 'dist/index.d.ts' : 'src/index.ts'),
+      exclude: {
+        paths: [`${staticFilesPrefix}/*`],
+      },
     }),
   )
   .use(
     staticPlugin({
-      prefix: '/',
+      prefix: staticFilesPrefix,
       // Use regex patterns instead of strings to work around an
       // @elysiajs/static v1.4.7 bug: shouldIgnore() checks
       // pattern.includes(file) instead of file.includes(pattern),
@@ -98,8 +101,8 @@ const app = new Elysia()
   // Serve index.html as a raw file via Bun.file() to bypass Bun's HTML
   // bundler. This is the root cause fix for path resolution errors when
   // embedding the frontend build output in the backend.
-  .get('/index.html', () => new Response(Bun.file(indexHtmlPath)))
-  .get('/', () => new Response(Bun.file(indexHtmlPath)))
+  .get(`${staticFilesPrefix}/index.html`, () => new Response(Bun.file(indexHtmlPath)))
+  .get(staticFilesPrefix, () => new Response(Bun.file(indexHtmlPath)))
   .onError(({ error }) => {
     return handleUncaughtError(error, 500, 'Internal server error')
   })
