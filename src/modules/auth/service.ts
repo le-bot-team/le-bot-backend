@@ -23,6 +23,8 @@ const transport = nodemailer.createTransport({
     user: Bun.env.SMTP_USERNAME,
     pass: Bun.env.SMTP_PASSWORD,
   },
+  requireTLS: true,
+  secure: true,
 })
 
 const consumeEmailCode = async (email: string, code: string): Promise<boolean> => {
