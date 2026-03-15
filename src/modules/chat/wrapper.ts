@@ -70,7 +70,8 @@ export class ApiWrapper {
       }
 
       // If previous response is still being processed/played, ignore this utterance.
-      // Interrupt detection is now handled in onUpdate instead.
+      // Interrupt detection is handled in onUpdate; if it succeeded, _isReady would
+      // already be true and we wouldn't enter this branch.
       if (!this._isReady) {
         log.info(
           { recognized },
@@ -204,6 +205,7 @@ export class ApiWrapper {
         }
       } else if (!this._hasInterruptedThisRound) {
         // System is busy - perform VPR for interrupt detection (only once per round)
+        this._hasInterruptedThisRound = true
         log.info(
           {
             text,
@@ -214,7 +216,6 @@ export class ApiWrapper {
 
         const recognizeResult = await this._handleVoicePrintRecognition()
         this._audioBufferForVpr = []
-        this._hasInterruptedThisRound = true
 
         if (recognizeResult?.success) {
           if (recognizeResult.data.person_id === this._currentPersonId) {
@@ -223,6 +224,9 @@ export class ApiWrapper {
               '[ApiWrapper] Same speaker confirmed, interrupting ongoing processes',
             )
             await this._interruptOngoingProcesses()
+            // Restore ready state so onFinish can process the new utterance
+            this._isReady = true
+            this._hasInterruptedThisRound = false
           } else {
             log.info(
               {
