@@ -69,20 +69,62 @@ export class ApiWrapper {
         return
       }
 
-      // If previous response is still being processed/played, ignore this utterance.
-      // Interrupt detection is handled in onUpdate; if it succeeded, _isReady would
-      // already be true and we wouldn't enter this branch.
+      // If previous response is still being processed/played
       if (!this._isReady) {
-        log.info(
-          { recognized },
-          '[ApiWrapper] Utterance received while busy, ignoring (interrupt handled in onUpdate)',
-        )
-        this._audioBufferForVpr = []
-        return
-      }
+        if (this._hasInterruptedThisRound) {
+          // onUpdate already attempted interrupt detection — if it succeeded,
+          // _isReady would be true and we wouldn't be here. So it either failed
+          // VPR or detected a different speaker. Ignore this utterance.
+          log.info(
+            { recognized },
+            '[ApiWrapper] Utterance received while busy, interrupt already attempted',
+          )
+          this._audioBufferForVpr = []
+          return
+        }
 
-      // Normal new session - clear VPR buffer for next recognition
-      this._audioBufferForVpr = []
+        // Fallback: onUpdate didn't trigger interrupt detection (ASR may skip
+        // intermediate results and directly emit definite result). Perform
+        // VPR-based interrupt check here.
+        log.info(
+          {
+            recognized,
+            ttsConnected: this._ttsApi.isConnected,
+          },
+          '[ApiWrapper] New utterance during active session, verifying speaker for interrupt',
+        )
+
+        this._hasInterruptedThisRound = true
+        const recognizeResult = await this._handleVoicePrintRecognition()
+        this._audioBufferForVpr = []
+
+        if (recognizeResult?.success) {
+          if (recognizeResult.data.person_id === this._currentPersonId) {
+            log.info(
+              { personId: recognizeResult.data.person_id },
+              '[ApiWrapper] Same speaker confirmed, interrupting ongoing processes',
+            )
+            await this._interruptOngoingProcesses()
+            // Fall through to process the new utterance below
+          } else {
+            log.info(
+              {
+                detected: recognizeResult.data.person_id,
+                current: this._currentPersonId,
+              },
+              '[ApiWrapper] Different speaker during active session, ignoring',
+            )
+            return
+          }
+        } else {
+          // VPR failed - be conservative, don't interrupt (could be echo)
+          log.info('[ApiWrapper] VPR failed during active session, ignoring utterance')
+          return
+        }
+      } else {
+        // Normal new session - clear VPR buffer for next recognition
+        this._audioBufferForVpr = []
+      }
 
       this._isReady = false
 

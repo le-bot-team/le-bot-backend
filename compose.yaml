@@ -46,6 +46,8 @@ services:
     restart: unless-stopped
     networks:
       - internal
+    volumes:
+      - redisdata:/data
     healthcheck:
       test: ['CMD-SHELL', 'redis-cli ping | grep PONG']
       interval: 10s
@@ -54,3 +56,4 @@ services:
       start_period: 5s
 volumes:
   pgdata:
+  redisdata:
